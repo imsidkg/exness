@@ -1,0 +1,14 @@
+{
+  "dependencies": {
+    "@types/ioredis": "^5.0.0",
+    "@types/pg": "^8.15.5",
+    "@types/ws": "^8.18.1",
+    "ioredis": "^5.7.0",
+    "pg": "^8.16.3",
+    "typescript": "^5.9.2",
+    "ws": "^8.18.3"
+  },
+  "scripts": {
+    "start": "tsc && bun run dist/index.js"
+  }
+}
