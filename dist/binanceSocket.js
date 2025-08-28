@@ -8,7 +8,7 @@ const ws_1 = __importDefault(require("ws"));
 const redisClient_1 = require("./lib/redisClient");
 const fetchBinanceData = async (symbols) => {
     const streams = symbols
-        .map((symbol) => `${symbol.toLowerCase()}@ticker`)
+        .map((symbol) => `${symbol.toLowerCase()}@bookTicker`)
         .join("/");
     const url = `wss://stream.binance.com:9443/stream?streams=${streams}`;
     const ws = new ws_1.default(url);
@@ -19,7 +19,7 @@ const fetchBinanceData = async (symbols) => {
         const parsedData = JSON.parse(data);
         const ticker = parsedData.data;
         await redisClient_1.redis.lpush("binance:queue", JSON.stringify(ticker));
-        console.log(`${ticker.s} | Price: ${ticker.c} | 24h Change: ${ticker.P}%`);
+        console.log(`${ticker.s} | Bid: ${ticker.b} | Ask: ${ticker.a} `);
     });
     ws.on("error", () => {
         console.log("Error connecting to websocket");

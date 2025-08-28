@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.processQueue = void 0;
 const redisClient_1 = require("../lib/redisClient");
 const timescaleService_1 = require("../services/timescaleService");
 const processQueue = async () => {
@@ -7,31 +8,32 @@ const processQueue = async () => {
         let items = [];
         for (let i = 0; i < 50; i++) {
             const item = await redisClient_1.redis.rpop("binance:queue");
-            if (!item) {
+            if (!item)
                 break;
-            }
             items.push(item);
         }
         if (items.length > 0) {
             const tickers = items.map((msg) => {
                 const binanceTicker = JSON.parse(msg);
+                const bidPrice = parseFloat(binanceTicker.b);
+                const askPrice = parseFloat(binanceTicker.a);
                 return {
-                    time: new Date(binanceTicker.E),
+                    time: new Date(),
                     symbol: binanceTicker.s,
-                    price: parseFloat(binanceTicker.c),
-                    volume: parseFloat(binanceTicker.v),
+                    bidPrice,
+                    askPrice,
+                    volume: 0,
                 };
             });
-            console.log(`Processing batch of ${tickers.length} tickers`);
-            await (0, timescaleService_1.insertTickerBatch)(tickers);
+            if (tickers.length > 0) {
+                console.log(`Processing batch of ${tickers.length} tickers`);
+                await (0, timescaleService_1.insertTickerBatch)(tickers);
+            }
         }
         else {
             await new Promise((res) => setTimeout(res, 100));
         }
     }
 };
-processQueue().catch((err) => {
-    console.error(" Worker error:", err);
-    process.exit(1);
-});
+exports.processQueue = processQueue;
 //# sourceMappingURL=queryWorker.js.map

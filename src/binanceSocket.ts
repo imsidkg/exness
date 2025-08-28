@@ -3,7 +3,7 @@ import { redis } from "./lib/redisClient";
 
 export const fetchBinanceData = async (symbols: string[]) => {
   const streams = symbols
-    .map((symbol) => `${symbol.toLowerCase()}@ticker`)
+    .map((symbol) => `${symbol.toLowerCase()}@bookTicker`)
     .join("/");
   const url = `wss://stream.binance.com:9443/stream?streams=${streams}`;
 
@@ -20,7 +20,7 @@ export const fetchBinanceData = async (symbols: string[]) => {
     await redis.lpush("binance:queue", JSON.stringify(ticker));
 
     console.log(
-      `${ticker.s} | Price: ${ticker.c} | 24h Change: ${ticker.P}%`
+      `${ticker.s} | Bid: ${ ticker.b} | Ask: ${ ticker.a} `
     );
   });
 
