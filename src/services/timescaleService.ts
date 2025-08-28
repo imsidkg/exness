@@ -43,7 +43,7 @@ export async function insertTickerBatch(batch: Ticker[]) {
   console.log(`Successfully inserted batch of ${batch.length} tickers`);
 }
 
-export async function getAggregatedData(symbol: string, bucket: string) {
+export async function   getAggregatedData(symbol: string, bucket: string) {
   let query: string;
   let params: any[];
 

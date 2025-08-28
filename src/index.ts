@@ -1,3 +1,4 @@
+import "./server";
 import { fetchBinanceData } from "./binanceSocket";
 import { initDB } from "./db/init";
 import { processQueue } from "./workers/queryWorker";
