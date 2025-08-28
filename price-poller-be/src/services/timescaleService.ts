@@ -63,9 +63,10 @@ export async function   getAggregatedData(symbol: string, bucket: string) {
   } else {
     query = `
       SELECT time_bucket($1, time) AS bucket,
-             AVG(bid_price) AS avg_bid_price,
-             AVG(ask_price) AS avg_ask_price,
-             SUM(volume) AS total_volume
+             first(ask_price, time) AS open,
+             MAX(ask_price) AS high,
+             MIN(ask_price) AS low,
+             last(ask_price, time) AS close
       FROM tickers
       WHERE symbol = $2
       GROUP BY bucket
