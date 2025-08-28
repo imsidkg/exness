@@ -1,4 +1,4 @@
-import { redis } from "./redisClient";
+import { redis } from "../lib/redisClient";
 import { Ticker } from "../models/ticker";
 import { insertTickerBatch } from "../services/timescaleService";
 
@@ -14,8 +14,18 @@ const processQueue = async () => {
       items.push(item);
     }
     if (items.length > 0) {
-      const tickers: Ticker[] = items.map((msg) => JSON.parse(msg));
-      console.log(` Processing batch of ${tickers.length} tickers`);
+      const tickers: Ticker[] = items.map((msg) => {
+        const binanceTicker = JSON.parse(msg) as BinanceTicker;
+
+        return {
+          time: new Date(binanceTicker.E),
+          symbol: binanceTicker.s,
+          price: parseFloat(binanceTicker.c),
+          volume: parseFloat(binanceTicker.v),
+        };
+      });
+
+      console.log(`Processing batch of ${tickers.length} tickers`);
       await insertTickerBatch(tickers);
     } else {
       await new Promise((res) => setTimeout(res, 100));

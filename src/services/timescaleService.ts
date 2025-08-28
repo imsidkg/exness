@@ -32,6 +32,7 @@ export async function insertTickerBatch(batch: Ticker[]) {
   );
 
   await pool.query(query, values);
+  console.log(`Successfully inserted batch of ${batch.length} tickers`);
 }
 
 export async function getAggregatedData(

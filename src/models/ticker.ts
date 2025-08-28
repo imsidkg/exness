@@ -11,7 +11,7 @@ export interface NewTicker {
   volume: number;
   time?: Date;
 }
-    
+
 export function createTicker(
   symbol: string,
   price: number,

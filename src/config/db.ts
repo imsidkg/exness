@@ -4,6 +4,6 @@ export const pool = new Pool({
   user: "postgres",
   host: "localhost",
   database: "timescaledb",
-  password: "secret",
+  password: "newpassword",
   port: 5432,
 });
