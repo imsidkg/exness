@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { AuthenticatedRequest } from '../middleware/auth';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { pool } from '../config/db';
@@ -93,9 +94,8 @@ export const signin = async (req: Request, res: Response) => {
         }
     };
 
-    export const getBalance = async (req: Request, res: Response) => {
+    export const getBalance = async (req: AuthenticatedRequest, res: Response) => {
         try {
-            // @ts-ignore
             const userId = req.userId; 
 
             if (!userId) {

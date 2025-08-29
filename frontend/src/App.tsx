@@ -106,10 +106,38 @@ function App() {
     setUserBalance(balance);
   };
 
+  const handleLogout = () => {
+    // Simple frontend-only logout - just clear localStorage and reset state
+    localStorage.removeItem("token");
+    setIsLoggedIn(false);
+    setUserBalance(null);
+  };
+
+  const fetchUserBalance = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    try {
+      const response = await fetch("http://localhost:3001/api/v1/user/balance", {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setUserBalance(data.balance);
+      }
+    } catch (error) {
+      console.error("Error fetching balance:", error);
+    }
+  };
+
   useEffect(() => {
     // Check for token on initial load
     if (localStorage.getItem("token")) {
       setIsLoggedIn(true);
+      fetchUserBalance();
     }
 
     fetch(
@@ -164,7 +192,13 @@ function App() {
     ws.onclose = () => console.log("Disconnected from WebSocket server");
     ws.onerror = (error) => console.error("WebSocket error:", error);
 
-    return () => ws.close();
+    // Set up interval to fetch balance every 5 seconds
+    const balanceInterval = setInterval(fetchUserBalance, 5000);
+
+    return () => {
+      ws.close();
+      clearInterval(balanceInterval);
+    };
   }, [state.symbol, state.interval]);
 
   return (
@@ -204,6 +238,20 @@ function App() {
             placeholder="Interval"
           />
           <ChartComponent data={state.candleData} />
+          <button
+            onClick={handleLogout}
+            style={{
+              marginTop: "20px",
+              padding: "10px 20px",
+              backgroundColor: "#ff4444",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer"
+            }}
+          >
+            Logout
+          </button>
         </>
       )}
     </div>
