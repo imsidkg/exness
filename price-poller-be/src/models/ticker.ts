@@ -1,13 +1,15 @@
 export interface Ticker {
   time: Date;
   symbol: string;
-  bidPrice: number; 
-  askPrice: number; 
+  tradePrice: number;
+  bidPrice: number;
+  askPrice: number;
   volume: number;
 }
 
 export interface NewTicker {
   symbol: string;
+  tradePrice: number;
   bidPrice: number;
   askPrice: number;
   volume: number;
@@ -16,10 +18,11 @@ export interface NewTicker {
 
 export function createTicker(
   symbol: string,
+  tradePrice: number,
   bidPrice: number,
   askPrice: number,
   volume: number,
   time: Date = new Date()
 ): Ticker {
-  return { time, symbol, bidPrice, askPrice, volume };
+  return { time, symbol, tradePrice, bidPrice, askPrice, volume };
 }

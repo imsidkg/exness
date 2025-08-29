@@ -1,27 +1,25 @@
 import Websocket from "ws";
-import { redis } from "./lib/redisClient";
+import { redis } from "../lib/redisClient";
 
 export const fetchBinanceData = async (symbols: string[]) => {
   const streams = symbols
-    .map((symbol) => `${symbol.toLowerCase()}@bookTicker`)
+    .map((symbol) => `${symbol.toLowerCase()}@trade`)
     .join("/");
   const url = `wss://stream.binance.com:9443/stream?streams=${streams}`;
 
   const ws = new Websocket(url);
 
   ws.on("open", () => {
-    console.log("Websocket initialized");
+    console.log("Websocket initialized for trade stream");
   });
 
   ws.on("message", async (data: string) => {
     const parsedData = JSON.parse(data);
-    const ticker: BinanceTicker = parsedData.data;
+    const trade: BinanceTrade = parsedData.data;
 
-    await redis.lpush("binance:queue", JSON.stringify(ticker));
+    await redis.lpush("binance:trade:queue", JSON.stringify(trade));
 
-    console.log(
-      `${ticker.s} | Bid: ${ ticker.b} | Ask: ${ ticker.a} `
-    );
+    console.log(`${trade.s} | Price: ${trade.p}`);
   });
 
   ws.on("error", () => {

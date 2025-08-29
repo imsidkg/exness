@@ -3,27 +3,29 @@ import { Ticker } from "../models/ticker";
 
 export async function insertTicker(ticker: Ticker) {
   const query = `
-    INSERT INTO tickers (time, symbol, ask_price, bid_price, volume)
-    VALUES ($1, $2, $3, $4, $5)
+    INSERT INTO tickers (time, symbol, trade_price, bid_price, ask_price, volume)
+    VALUES ($1, $2, $3, $4, $5, $6)
   `;
   await pool.query(query, [
     ticker.time,
     ticker.symbol,
-    ticker.askPrice, // updated
-    ticker.bidPrice, // updated
+    ticker.tradePrice,
+    ticker.bidPrice,
+    ticker.askPrice,
     ticker.volume,
   ]);
 }
 
 export async function insertTickerBatch(batch: Ticker[]) {
   const query = `
-    INSERT INTO tickers (time, symbol, ask_price, bid_price, volume)
+    INSERT INTO tickers (time, symbol, trade_price, bid_price, ask_price, volume)
     SELECT * FROM unnest(
       $1::timestamptz[],
       $2::text[],
-      $3::float8[],  -- ask_price
+      $3::float8[],  -- trade_price
       $4::float8[],  -- bid_price
-      $5::float8[]   -- volume
+      $5::float8[],  -- ask_price
+      $6::float8[]   -- volume
     )
   `;
 
@@ -31,12 +33,13 @@ export async function insertTickerBatch(batch: Ticker[]) {
     (acc, ticker) => {
       acc[0].push(ticker.time);
       acc[1].push(ticker.symbol);
-      acc[2].push(ticker.askPrice);
+      acc[2].push(ticker.tradePrice);
       acc[3].push(ticker.bidPrice);
-      acc[4].push(ticker.volume);
+      acc[4].push(ticker.askPrice);
+      acc[5].push(ticker.volume);
       return acc;
     },
-    [[], [], [], [], []] as [Date[], string[], number[], number[], number[]]
+    [[], [], [], [], [], []] as [Date[], string[], number[], number[], number[], number[]]
   );
 
   await pool.query(query, values);
@@ -51,6 +54,7 @@ export async function   getAggregatedData(symbol: string, bucket: string) {
     query = `
       SELECT bucket,
              symbol,
+             avg_trade_price,
              avg_bid_price,
              avg_ask_price,
              total_volume
@@ -63,10 +67,10 @@ export async function   getAggregatedData(symbol: string, bucket: string) {
   } else {
     query = `
       SELECT time_bucket($1, time) AS bucket,
-             first(ask_price, time) AS open,
-             MAX(ask_price) AS high,
-             MIN(ask_price) AS low,
-             last(ask_price, time) AS close
+             first(trade_price, time) AS open,
+             MAX(trade_price) AS high,
+             MIN(trade_price) AS low,
+             last(trade_price, time) AS close
       FROM tickers
       WHERE symbol = $2
       GROUP BY bucket

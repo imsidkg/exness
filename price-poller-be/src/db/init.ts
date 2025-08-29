@@ -6,9 +6,10 @@ export async function initDB() {
     CREATE TABLE IF NOT EXISTS tickers (
       time TIMESTAMPTZ NOT NULL,
       symbol TEXT NOT NULL,
-      ask_price NUMERIC,
-      bid_price NUMERIC,
-      volume NUMERIC
+      trade_price DOUBLE PRECISION,
+      bid_price DOUBLE PRECISION,
+      ask_price DOUBLE PRECISION,
+      volume DOUBLE PRECISION
     );
   `);
 
@@ -24,8 +25,9 @@ export async function initDB() {
   SELECT 
     time_bucket('1 hour', time) AS bucket,
     symbol,
-    AVG(ask_price) AS avg_ask_price,
+    AVG(trade_price) AS avg_trade_price,
     AVG(bid_price) AS avg_bid_price,
+    AVG(ask_price) AS avg_ask_price,
     SUM(volume) AS total_volume
   FROM tickers
   GROUP BY bucket, symbol;
