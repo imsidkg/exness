@@ -8,6 +8,7 @@ const port = 3001;
 
 app.use(cors());
 app.use(express.json());
+app.use(bodyParser.json());
 app.get("/", (req: Request, res: Response) => {
   res.send("Hello from the price poller BE!");
 });
