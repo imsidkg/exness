@@ -83,3 +83,18 @@ export async function   getAggregatedData(symbol: string, bucket: string) {
   const res = await pool.query(query, params);
   return res.rows;
 }
+
+export async function getLatestTradePrice(symbol: string): Promise<number | null> {
+  const query = `
+    SELECT trade_price
+    FROM tickers
+    WHERE symbol = $1
+    ORDER BY time DESC
+    LIMIT 1;
+  `;
+  const res = await pool.query(query, [symbol]);
+  if (res.rows.length > 0) {
+    return res.rows[0].trade_price;
+  }
+  return null;
+}

@@ -1,5 +1,6 @@
-import React, { useEffect, useReducer } from "react";
+import React, { useEffect, useReducer, useState } from "react"; // Added useState
 import { ChartComponent } from "./components/CandleSticks";
+import Auth from "./components/Auth";
 
 type State = {
   candleData: any[];
@@ -96,8 +97,21 @@ function reducer(state: State, action: Action): State {
 }
 function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(
+    !!localStorage.getItem("token")
+  ); // Added isLoggedIn state
+  const [userBalance, setUserBalance] = useState<number | null>(null);
+  const handleAuthSuccess = (balance: number) => {
+    setIsLoggedIn(true);
+    setUserBalance(balance);
+  };
 
   useEffect(() => {
+    // Check for token on initial load
+    if (localStorage.getItem("token")) {
+      setIsLoggedIn(true);
+    }
+
     fetch(
       `http://localhost:3001/candles/${state.symbol}?interval=${state.interval}`
     )
@@ -155,32 +169,43 @@ function App() {
 
   return (
     <div style={{ width: "800px", margin: "20px auto" }}>
-      <div>
-        <h2>Real-time Prices:</h2>
-        <p>Bid: {state.bidPrice}</p>
-        <p>Ask: {state.askPrice}</p>
-      </div>
-      <div>
-        <h2>Current price</h2>
-        <h2>{state.currentPrice}</h2>
-      </div>
-      <input
-        type="text"
-        value={state.symbol}
-        onChange={(e) =>
-          dispatch({ type: "SET_SYMBOL", payload: e.target.value })
-        }
-        placeholder="Symbol"
-      />
-      <input
-        type="text"
-        value={state.interval}
-        onChange={(e) =>
-          dispatch({ type: "SET_INTERVAL", payload: e.target.value })
-        }
-        placeholder="Interval"
-      />
-      <ChartComponent data={state.candleData} />
+      {!isLoggedIn ? (
+        <Auth onAuthSuccess={handleAuthSuccess} />
+      ) : (
+        <>
+          <div>
+            <h2>Real-time Prices:</h2>
+            <p>Bid: {state.bidPrice}</p>
+            <p>Ask: {state.askPrice}</p>
+          </div>
+          {userBalance !== null && (
+            <p style={{ marginTop: "5px", color: "green" }}>
+              Your Balance: ${userBalance.toFixed(2)}
+            </p>
+          )}
+          <div>
+            <h2>Current price</h2>
+            <h2>{state.currentPrice}</h2>
+          </div>
+          <input
+            type="text"
+            value={state.symbol}
+            onChange={(e) =>
+              dispatch({ type: "SET_SYMBOL", payload: e.target.value })
+            }
+            placeholder="Symbol"
+          />
+          <input
+            type="text"
+            value={state.interval}
+            onChange={(e) =>
+              dispatch({ type: "SET_INTERVAL", payload: e.target.value })
+            }
+            placeholder="Interval"
+          />
+          <ChartComponent data={state.candleData} />
+        </>
+      )}
     </div>
   );
 }

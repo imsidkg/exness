@@ -13,6 +13,22 @@ export async function initDB() {
     );
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      email TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS balances (
+      user_id UUID PRIMARY KEY,
+      balance BIGINT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users (id)
+    );
+  `);
+
   // Create hypertable (TimescaleDB)
   await pool.query(`
     SELECT create_hypertable('tickers', 'time', if_not_exists => TRUE);
