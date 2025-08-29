@@ -7,7 +7,9 @@ function isTradeRequest(body: any): body is TradeRequest {
     (body.type === "buy" || body.type === "sell") &&
     typeof body.margin === "number" &&
     body.margin > 0 &&
-    [5, 10, 20, 100].includes(body.leverage)
+    [5, 10, 20, 100].includes(body.leverage) &&
+    typeof body.symbol === "string" && // Added symbol validation
+    body.symbol.length > 0 // Ensure symbol is not empty
   );
 }
 

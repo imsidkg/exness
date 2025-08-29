@@ -4,30 +4,32 @@ import { BID_ASK_CHANNEL, redis } from "../lib/redisClient";
 const activeTrades: ActiveTrade[] = [];
 const currentPrices: Map<string, number> = new Map();
 
-const subscriber = redis.duplicate();
-subscriber.subscribe(BID_ASK_CHANNEL, (error) => {
-  if (error) {
-    console.error(
-      "Failed to subscribe to Redis channel for trading service",
-      error
-    );
-  }
-});
-
-subscriber.on("message", (channel, message) => {
-  if (channel === BID_ASK_CHANNEL) {
-    try {
-      const parsedMessage = JSON.parse(message);
-      const symbol = parsedMessage.symbol;
-      const askPrice = parsedMessage.ask;
-      if (symbol && askPrice !== undefined) {
-        currentPrices.set(symbol, askPrice);
-      }
-    } catch (error) {
-      console.error("Error parsing Redis message:", error);
+export const startPriceListener = () => {
+  const subscriber = redis.duplicate();
+  subscriber.subscribe(BID_ASK_CHANNEL, (error) => {
+    if (error) {
+      console.error(
+        "Failed to subscribe to Redis channel for trading service",
+        error
+      );
     }
-  }
-});
+  });
+
+  subscriber.on("message", (channel, message) => {
+    if (channel === BID_ASK_CHANNEL) {
+      try {
+        const parsedMessage = JSON.parse(message);
+        const symbol = parsedMessage.symbol;
+        const askPrice = parsedMessage.ask;
+        if (symbol && askPrice !== undefined) {
+          currentPrices.set(symbol, askPrice);
+        }
+      } catch (error) {
+        console.error("Error parsing Redis message:", error);
+      }
+    }
+  });
+};
 
 export const createTrade = async ({
   type,
