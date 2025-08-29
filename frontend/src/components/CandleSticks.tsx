@@ -1,16 +1,17 @@
 import React, { useEffect, useRef } from "react";
-import { createChart, CandlestickSeries, ColorType } from "lightweight-charts";
-
-interface CandleData {
-  time: number; // UNIX timestamp in seconds
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-}
+import {
+  createChart,
+  ColorType,
+  CandlestickSeries,
+} from "lightweight-charts";
+import type {
+  IChartApi,
+  ISeriesApi,
+  CandlestickData,
+} from "lightweight-charts";
 
 interface ChartProps {
-  data: CandleData[];
+  data: CandlestickData[];
   colors?: {
     backgroundColor?: string;
     textColor?: string;
@@ -36,6 +37,9 @@ export const ChartComponent: React.FC<ChartProps> = ({ data, colors = {} }) => {
   } = colors;
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<{ chart: IChartApi; series: ISeriesApi<"Candlestick"> } | null>(
+    null
+  );
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -49,7 +53,7 @@ export const ChartComponent: React.FC<ChartProps> = ({ data, colors = {} }) => {
       height: 300,
     });
 
-    const candleSeries = chart.addSeries(CandlestickSeries, {
+        const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor,
       downColor,
       borderUpColor,
@@ -57,10 +61,10 @@ export const ChartComponent: React.FC<ChartProps> = ({ data, colors = {} }) => {
       wickUpColor,
       wickDownColor,
     });
-    //@ts-ignore
-    candleSeries.setData(data);
 
     chart.timeScale().fitContent();
+
+    chartRef.current = { chart, series: candleSeries };
 
     const handleResize = () => {
       chart.applyOptions({
@@ -73,9 +77,9 @@ export const ChartComponent: React.FC<ChartProps> = ({ data, colors = {} }) => {
     return () => {
       window.removeEventListener("resize", handleResize);
       chart.remove();
+      chartRef.current = null;
     };
   }, [
-    data,
     backgroundColor,
     textColor,
     upColor,
@@ -85,6 +89,12 @@ export const ChartComponent: React.FC<ChartProps> = ({ data, colors = {} }) => {
     wickUpColor,
     wickDownColor,
   ]);
+
+  useEffect(() => {
+    if (chartRef.current && data) {
+      chartRef.current.series.setData(data);
+    }
+  }, [data]);
 
   return (
     <div ref={chartContainerRef} style={{ width: "100%", height: "300px" }} />

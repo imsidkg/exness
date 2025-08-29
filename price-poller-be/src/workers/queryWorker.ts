@@ -32,6 +32,7 @@ export const processQueue = async () => {
             bid: bidPrice,
             ask: askPrice,
             tradePrice: tradePrice,
+            tradeTime: trade.T,
           })
         );
 
