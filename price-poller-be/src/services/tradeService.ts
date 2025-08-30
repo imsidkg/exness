@@ -35,14 +35,16 @@ export const startPriceListener = () => {
 
 export const createTrade = async (
   userId: number,
-  { type, leverage, symbol, quantity }: Omit<TradeRequest, "margin">
+  tradeDetails: TradeRequest
 ): Promise<string> => {
+  const { type, leverage, symbol, quantity, margin: manualMargin } = tradeDetails;
+
   const entryPrice = currentPrices.get(symbol);
   if (!entryPrice) {
     throw new Error("Entry price is not set for this symbol");
   }
 
-  const margin = (quantity * entryPrice) / leverage;
+  const margin = manualMargin !== undefined ? manualMargin : (quantity * entryPrice) / leverage;
   const client: PoolClient = await pool.connect();
 
   try {
@@ -200,3 +202,4 @@ export const monitorTradesForLiquidation = () => {
   //   }
   // });
 };
+

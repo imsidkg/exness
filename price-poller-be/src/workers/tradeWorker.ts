@@ -8,7 +8,7 @@ const MAX_RETRIES = 3;
 
 interface TradeJob {
   userId: number;
-  tradeDetails: Omit<TradeRequest, 'margin'>;
+  tradeDetails: TradeRequest;
 }
 
 // Use redis.duplicate() to create a new client with the same config
@@ -34,7 +34,7 @@ const processTradeJob = async (job: TradeJob) => {
       console.error(`Attempt ${attempt} failed for user ${job.userId}: ${error.message}`);
       if (attempt === MAX_RETRIES) {
         // All retries failed, broadcast failure and give up
-        console.error(`All ${MAX_RETRIES} retries failed for user ${job.userId}. Job will be discarded.`);
+        console.log(`All ${MAX_RETRIES} retries failed for user ${job.userId}. Job will be discarded.`);
         // Use the new, specific broadcast function
         broadcastTradeUpdate(JSON.stringify({
           type: 'TRADE_FAILURE',

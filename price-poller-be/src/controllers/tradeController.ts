@@ -5,7 +5,15 @@ import { redis } from '../lib/redisClient';
 
 const TRADE_QUEUE_NAME = 'trade:order:queue';
 
-function isTradeRequest(body: any): body is Omit<TradeRequest, 'margin'> {
+interface TradeRequest {
+  type: 'buy' | 'sell';
+  leverage: number;
+  symbol: string;
+  quantity: number;
+  margin?: number; // Optional margin field
+}
+
+function isTradeRequest(body: any): body is TradeRequest {
   return (
     body &&
     (body.type === "buy" || body.type === "sell") &&
@@ -14,7 +22,8 @@ function isTradeRequest(body: any): body is Omit<TradeRequest, 'margin'> {
     typeof body.symbol === "string" &&
     body.symbol.length > 0 &&
     typeof body.quantity === "number" &&
-    body.quantity > 0
+    body.quantity > 0 &&
+    (typeof body.margin === "undefined" || (typeof body.margin === "number" && body.margin > 0))
   );
 }
 
@@ -30,7 +39,7 @@ export const tradeProcessor = async (req: AuthenticatedRequest, res: Response) =
 
   const job = {
     userId: userId,
-    tradeDetails: req.body
+    tradeDetails: req.body as TradeRequest
   };
 
   try {
