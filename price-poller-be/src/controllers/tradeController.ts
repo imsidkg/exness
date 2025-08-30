@@ -7,7 +7,7 @@ const TRADE_QUEUE_NAME = 'trade:order:queue';
 
 interface TradeRequest {
   type: 'buy' | 'sell';
-  leverage: number;
+  leverage?: number; // Make leverage optional
   symbol: string;
   quantity: number;
   margin?: number; // Optional margin field
@@ -17,8 +17,7 @@ function isTradeRequest(body: any): body is TradeRequest {
   return (
     body &&
     (body.type === "buy" || body.type === "sell") &&
-    typeof body.leverage === "number" &&
-    [5, 10, 20, 100].includes(body.leverage) &&
+    (typeof body.leverage === "undefined" || typeof body.leverage === "number") && // Leverage is optional and can be any number
     typeof body.symbol === "string" &&
     body.symbol.length > 0 &&
     typeof body.quantity === "number" &&

@@ -34,8 +34,8 @@
 
  interface TradeRequest {
   type: "buy" | "sell";
-  margin: number;
-  leverage: 5 | 10 | 20 | 100;
+  margin?: number; // Make margin optional as it can be calculated
+  leverage?: 5 | 10 | 20 | 100; // Make leverage optional
   symbol: string;
   quantity: number;
 }

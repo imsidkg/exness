@@ -44,7 +44,11 @@ export const createTrade = async (
     throw new Error("Entry price is not set for this symbol");
   }
 
-  const margin = manualMargin !== undefined ? manualMargin : (quantity * entryPrice) / leverage;
+  // Determine the effective leverage, defaulting to 1 if not provided
+  const effectiveLeverage = leverage || 1;
+
+  // Calculate margin: use manualMargin if provided, otherwise calculate based on effectiveLeverage
+  const margin = manualMargin !== undefined ? manualMargin : (quantity * entryPrice) / effectiveLeverage;
   const client: PoolClient = await pool.connect();
 
   try {
@@ -79,7 +83,7 @@ export const createTrade = async (
       userId,
       type,
       margin,
-      leverage,
+      effectiveLeverage, // Use effectiveLeverage here
       symbol,
       quantity,
       entryPrice,
