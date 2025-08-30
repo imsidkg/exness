@@ -38,6 +38,8 @@
   leverage?: 5 | 10 | 20 | 100; // Make leverage optional
   symbol: string;
   quantity: number;
+  stopLoss?: number; // Optional stop loss price
+  takeProfit?: number; // Optional take profit price
 }
 
  interface ActiveTrade {

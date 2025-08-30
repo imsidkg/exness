@@ -59,12 +59,14 @@ export async function initDB() {
       exit_price DOUBLE PRECISION,
       closed_at TIMESTAMPTZ,
       realized_pnl DOUBLE PRECISION,
+      stop_loss DOUBLE PRECISION,
+      take_profit DOUBLE PRECISION,
       FOREIGN KEY (user_id) REFERENCES users (id)
     );
   `);
 
   // Check if 'quantity' column exists in 'trades' table, and add if not
-  const columnExists = await pool.query(`
+  const quantityColumnExists = await pool.query(`
     SELECT EXISTS (
       SELECT 1
       FROM information_schema.columns
@@ -72,9 +74,39 @@ export async function initDB() {
     );
   `);
 
-  if (!columnExists.rows[0].exists) {
+  if (!quantityColumnExists.rows[0].exists) {
     await pool.query(`
       ALTER TABLE trades ADD COLUMN quantity DOUBLE PRECISION NOT NULL DEFAULT 0;
+    `);
+  }
+
+  // Check if 'stop_loss' column exists in 'trades' table, and add if not
+  const stopLossColumnExists = await pool.query(`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_name = 'trades' AND column_name = 'stop_loss'
+    );
+  `);
+
+  if (!stopLossColumnExists.rows[0].exists) {
+    await pool.query(`
+      ALTER TABLE trades ADD COLUMN stop_loss DOUBLE PRECISION;
+    `);
+  }
+
+  // Check if 'take_profit' column exists in 'trades' table, and add if not
+  const takeProfitColumnExists = await pool.query(`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_name = 'trades' AND column_name = 'take_profit'
+    );
+  `);
+
+  if (!takeProfitColumnExists.rows[0].exists) {
+    await pool.query(`
+      ALTER TABLE trades ADD COLUMN take_profit DOUBLE PRECISION;
     `);
   }
 

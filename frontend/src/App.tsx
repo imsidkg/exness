@@ -101,6 +101,11 @@ function App() {
     !!localStorage.getItem("token")
   ); // Added isLoggedIn state
   const [userBalance, setUserBalance] = useState<number | null>(null);
+  const [quantity, setQuantity] = useState<number>(0.001);
+  const [leverage, setLeverage] = useState<number>(1);
+  const [stopLoss, setStopLoss] = useState<number | undefined>(undefined);
+  const [takeProfit, setTakeProfit] = useState<number | undefined>(undefined);
+
   const handleAuthSuccess = (balance: number) => {
     setIsLoggedIn(true);
     setUserBalance(balance);
@@ -130,6 +135,43 @@ function App() {
       }
     } catch (error) {
       console.error("Error fetching balance:", error);
+    }
+  };
+
+  const handleTrade = async (type: "buy" | "sell") => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("Please log in to place a trade.");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:3001/api/v1/trade", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          type,
+          symbol: state.symbol,
+          quantity,
+          leverage,
+          stopLoss,
+          takeProfit,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        alert(data.message);
+        fetchUserBalance(); // Refresh balance after trade
+      } else {
+        alert(`Trade failed: ${data.message}`);
+      }
+    } catch (error) {
+      console.error("Error placing trade:", error);
+      alert("Network error or server is unreachable.");
     }
   };
 
@@ -237,6 +279,68 @@ function App() {
             }
             placeholder="Interval"
           />
+
+          <div style={{ marginTop: "20px", borderTop: "1px solid #ccc", paddingTop: "20px" }}>
+            <h3>Place Trade</h3>
+            <div style={{ marginBottom: "10px" }}>
+              <label htmlFor="quantity">Quantity:</label>
+              <input
+                type="number"
+                id="quantity"
+                value={quantity}
+                onChange={(e) => setQuantity(parseFloat(e.target.value))}
+                placeholder="Quantity"
+                step="0.001"
+                min="0.001"
+              />
+            </div>
+            <div style={{ marginBottom: "10px" }}>
+              <label htmlFor="leverage">Leverage:</label>
+              <input
+                type="number"
+                id="leverage"
+                value={leverage}
+                onChange={(e) => setLeverage(parseFloat(e.target.value))}
+                placeholder="Leverage"
+                min="1"
+              />
+            </div>
+            <div style={{ marginBottom: "10px" }}>
+              <label htmlFor="stopLoss">Stop Loss:</label>
+              <input
+                type="number"
+                id="stopLoss"
+                value={stopLoss !== undefined ? stopLoss : ''}
+                onChange={(e) => setStopLoss(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                placeholder="Stop Loss (Optional)"
+                step="0.01"
+              />
+            </div>
+            <div style={{ marginBottom: "20px" }}>
+              <label htmlFor="takeProfit">Take Profit:</label>
+              <input
+                type="number"
+                id="takeProfit"
+                value={takeProfit !== undefined ? takeProfit : ''}
+                onChange={(e) => setTakeProfit(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                placeholder="Take Profit (Optional)"
+                step="0.01"
+              />
+            </div>
+            <button
+              onClick={() => handleTrade("buy")}
+              style={{ backgroundColor: "#4CAF50", color: "white", marginRight: "10px" }}
+            >
+              Buy
+            </button>
+            <button
+              onClick={() => handleTrade("sell")}
+              style={{ backgroundColor: "#f44336", color: "white" }}
+            >
+              Sell
+            </button>
+          </div>
+
           <ChartComponent data={state.candleData} />
           <button
             onClick={handleLogout}

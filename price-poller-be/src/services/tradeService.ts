@@ -37,7 +37,7 @@ export const createTrade = async (
   userId: number,
   tradeDetails: TradeRequest
 ): Promise<string> => {
-  const { type, leverage, symbol, quantity, margin: manualMargin } = tradeDetails;
+  const { type, leverage, symbol, quantity, margin: manualMargin, stopLoss, takeProfit } = tradeDetails;
 
   const entryPrice = currentPrices.get(symbol);
   if (!entryPrice) {
@@ -75,8 +75,8 @@ export const createTrade = async (
 
     // 3. Insert the new trade record
     const tradeQuery = `
-      INSERT INTO trades (user_id, type, margin, leverage, symbol, quantity, entry_price, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 'open')
+      INSERT INTO trades (user_id, type, margin, leverage, symbol, quantity, entry_price, status, stop_loss, take_profit)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'open', $8, $9)
       RETURNING order_id;
     `;
     const tradeRes = await client.query(tradeQuery, [
@@ -87,6 +87,8 @@ export const createTrade = async (
       symbol,
       quantity,
       entryPrice,
+      stopLoss || null, // Pass stopLoss, or null if undefined
+      takeProfit || null, // Pass takeProfit, or null if undefined
     ]);
 
     await client.query("COMMIT");
@@ -185,25 +187,67 @@ export const getClosedTrades = async (userId: string): Promise<Trade[]> => {
   return res.rows as Trade[];
 };
 
-// TODO: Update monitorTradesForLiquidation to fetch open trades from DB
-export const monitorTradesForLiquidation = () => {
-  // const openTrades = getActiveTrades(); // This will need to be updated to fetch from DB
-  // openTrades.forEach((trade) => {
-  //   const currentPrice = currentPrices.get(trade.symbol);
-  //   if (currentPrice === undefined) {
-  //     console.warn(
-  //       `Price not available for symbol ${trade.symbol}. Skipping P&L calculation for trade ${trade.orderId}.`
-  //     );
-  //     return; // Skip this trade if price is not available
-  //   }
-  //   const pnl = calculatePnL(trade, currentPrice);
-  //   // Liquidation condition: loss reaches 100% of margin
-  //   if (pnl <= -trade.margin) {
-  //     liquidateTrade(trade.orderId);
-  //     console.log(
-  //       `Trade ${trade.orderId} liquidated due to margin exhaustion. PnL: ${pnl}, Margin: ${trade.margin}`
-  //     );
-  //   }
-  // });
+export const getOpenTrades = async (): Promise<Trade[]> => {
+  const query = `
+    SELECT * FROM trades WHERE status = 'open';
+  `;
+  const res = await pool.query(query);
+  return res.rows as Trade[];
+};
+
+export const monitorTradesForLiquidation = async () => {
+  const openTrades = await getOpenTrades();
+
+  for (const trade of openTrades) {
+    const currentPrice = currentPrices.get(trade.symbol);
+    if (currentPrice === undefined) {
+      console.warn(
+        `Price not available for symbol ${trade.symbol}. Skipping SL/TP check for trade ${trade.order_id}.`
+      );
+      continue; // Skip this trade if price is not available
+    }
+
+    // Check Take Profit
+    if (trade.take_profit !== null && trade.take_profit !== undefined) {
+      if (trade.type === "buy" && currentPrice >= trade.take_profit) {
+        console.log(`Trade ${trade.order_id} hit Take Profit at ${currentPrice}. Closing trade.`);
+        await closeTrade(trade.order_id);
+        continue; // Move to the next trade after closing
+      }
+      if (trade.type === "sell" && currentPrice <= trade.take_profit) {
+        console.log(`Trade ${trade.order_id} hit Take Profit at ${currentPrice}. Closing trade.`);
+        await closeTrade(trade.order_id);
+        continue; // Move to the next trade after closing
+      }
+    }
+
+    // Check Stop Loss
+    if (trade.stop_loss !== null && trade.stop_loss !== undefined) {
+      if (trade.type === "buy" && currentPrice <= trade.stop_loss) {
+        console.log(`Trade ${trade.order_id} hit Stop Loss at ${currentPrice}. Closing trade.`);
+        await closeTrade(trade.order_id);
+        continue; // Move to the next trade after closing
+      }
+      if (trade.type === "sell" && currentPrice >= trade.stop_loss) {
+        console.log(`Trade ${trade.order_id} hit Stop Loss at ${currentPrice}. Closing trade.`);
+        await closeTrade(trade.order_id);
+        continue; // Move to the next trade after closing
+      }
+    }
+
+    // Original Liquidation condition (if still relevant, otherwise remove or modify)
+    const pnl = calculatePnL(
+      { type: trade.type, entry_price: trade.entry_price, quantity: trade.quantity },
+      currentPrice
+    );
+    if (pnl <= -trade.margin) {
+      // Assuming liquidateTrade is a function that handles liquidation, similar to closeTrade
+      // For now, we'll just close it, but a separate liquidation logic might be needed
+      console.log(
+        `Trade ${trade.order_id} liquidated due to margin exhaustion. PnL: ${pnl}, Margin: ${trade.margin}`
+      );
+      await closeTrade(trade.order_id); // Or call a specific liquidateTrade function
+    }
+  }
 };
 
