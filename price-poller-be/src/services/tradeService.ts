@@ -190,7 +190,7 @@ export const closeTrade = async (orderId: string): Promise<Trade> => {
   }
 };
 
-export const getClosedTrades = async (userId: string): Promise<Trade[]> => {
+export const getClosedTrades = async (userId: number): Promise<Trade[]> => {
   const query = `
     SELECT * FROM trades WHERE user_id = $1 AND status = 'closed' ORDER BY closed_at DESC;
   `;
@@ -205,6 +205,32 @@ export const getOpenTrades = async (): Promise<Trade[]> => {
   const res = await pool.query(query);
   return res.rows as Trade[];
 };
+
+export const getUnrealizedPnLForUser = async (userId: number): Promise<Trade[]> => {
+  const query = `
+    SELECT * FROM trades WHERE user_id = $1 AND status = 'open';
+  `;
+  const res = await pool.query(query, [userId]);
+  const openTrades = res.rows as Trade[];
+
+  return openTrades.map(trade => {
+    const currentPrice = currentPrices.get(trade.symbol);
+    if (currentPrice === undefined) {
+      console.warn(`Price not available for symbol ${trade.symbol}. Cannot calculate unrealized PnL for trade ${trade.order_id}.`);
+      return { ...trade, unrealized_pnl: null }; // Or handle as appropriate
+    }
+    const unrealized_pnl = calculatePnL(
+      {
+        type: trade.type,
+        entry_price: trade.entry_price,
+        quantity: trade.quantity,
+      },
+      currentPrice
+    );
+    return { ...trade, unrealized_pnl };
+  });
+};
+
 export const monitorTradesForLiquidation = async () => {
   const openTrades = await getOpenTrades();
 
