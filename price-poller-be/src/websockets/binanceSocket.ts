@@ -1,4 +1,4 @@
-import Websocket from "ws";
+import Websocket, { RawData } from "ws";
 import { redis } from "../lib/redisClient";
 
 export const fetchBinanceData = async (symbols: string[]) => {
@@ -13,17 +13,21 @@ export const fetchBinanceData = async (symbols: string[]) => {
     console.log("Websocket initialized for trade stream");
   });
 
-  ws.on("message", async (data: string) => {
-    const parsedData = JSON.parse(data);
-    const trade: BinanceTrade = parsedData.data;
+  ws.on("message", async (data: RawData) => {
+    try {
+      const parsedData = JSON.parse(data.toString());
+      const trade: BinanceTrade = parsedData.data;
 
-    await redis.lpush("binance:trade:queue", JSON.stringify(trade));
+      await redis.lpush("binance:trade:queue", JSON.stringify(trade));
 
-    console.log(`${trade.s} | Price: ${trade.p}`);
+      console.log(`${trade.s} | Price: ${trade.p}`);
+    } catch (error) {
+      console.error("Error processing message:", error);
+    }
   });
 
-  ws.on("error", () => {
-    console.log("Error connecting to websocket");
+  ws.on("error", (error) => {
+    console.log("Error connecting to websocket:", error);
   });
 
   ws.on("close", () => {

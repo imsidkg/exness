@@ -1,7 +1,7 @@
 
-import { redis } from '../lib/redisClient';
+import { redis } from '../lib/redisClient'; // Keep this import for the original client
 import { createTrade } from '../services/tradeService';
-import { broadcastTradeUpdate } from '../websockets/websocketServer'; // Corrected import
+import { broadcastTradeUpdate } from '../websockets/websocketServer';
 
 const TRADE_QUEUE_NAME = 'trade:order:queue';
 const MAX_RETRIES = 3;
@@ -10,6 +10,9 @@ interface TradeJob {
   userId: number;
   tradeDetails: Omit<TradeRequest, 'margin'>;
 }
+
+// Use redis.duplicate() to create a new client with the same config
+const workerRedis = redis.duplicate();
 
 const processTradeJob = async (job: TradeJob) => {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -50,22 +53,18 @@ export const startTradeWorker = async () => {
   console.log('Trade worker started, waiting for jobs...');
   while (true) {
     try {
-      // BRPOP is a blocking call, it will wait until a job is available
-      const result = await redis.brpop(TRADE_QUEUE_NAME, 0);
+      const result = await workerRedis.brpop(TRADE_QUEUE_NAME, 0); // Use workerRedis
       if (result) {
         const jobString = result[1];
         const job: TradeJob = JSON.parse(jobString);
-        // Process the job without awaiting it to allow the loop to continue listening
         processTradeJob(job);
       }
     } catch (error) {
       console.error('Critical error in trade worker loop:', error);
-      // Avoid crashing the worker on a single job parse error
     }
   }
 };
 
-// Start the worker if this file is run directly
 if (require.main === module) {
   startTradeWorker();
 }

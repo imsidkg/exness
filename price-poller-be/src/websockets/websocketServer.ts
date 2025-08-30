@@ -27,19 +27,22 @@ export const startWebSocketServer = () => {
     console.log(`Subscribed to ${count} channel(s).`);
   });
 
-  // Listen for messages on any subscribed channel
   subscriber.on('message', (channel, message) => {
-    // To help the client distinguish message types, we can wrap the data
-    const outgoingPayload = JSON.stringify({
-      channel: channel,
-      data: JSON.parse(message) // We assume the message from Redis is a JSON string
-    });
+    try {
+      // To help the client distinguish message types, we can wrap the data
+      const outgoingPayload = JSON.stringify({
+        channel: channel,
+        data: JSON.parse(message), // We assume the message from Redis is a JSON string
+      });
 
-    wss.clients.forEach(client => {
-      if (client.readyState === client.OPEN) {
-        client.send(outgoingPayload);
-      }
-    });
+      wss.clients.forEach(client => {
+        if (client.readyState === client.OPEN) {
+          client.send(outgoingPayload);
+        }
+      });
+    } catch (error) {
+      console.error(`Error parsing or sending message on channel ${channel}:`, error);
+    }
   });
 
   server.listen(WS_PORT, () => {
