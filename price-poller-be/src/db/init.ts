@@ -24,10 +24,26 @@ export async function initDB() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS balances (
       user_id UUID PRIMARY KEY,
-      balance BIGINT NOT NULL,
+      balance BIGINT NOT NULL, -- This will be altered to DOUBLE PRECISION
       FOREIGN KEY (user_id) REFERENCES users (id)
     );
   `);
+
+  // Check if 'balance' column in 'balances' table is BIGINT and alter to DOUBLE PRECISION if needed
+  const balanceColumnType = await pool.query(`
+    SELECT data_type
+    FROM information_schema.columns
+    WHERE table_name = 'balances' AND column_name = 'balance';
+  `);
+
+  if (balanceColumnType.rows.length > 0 && balanceColumnType.rows[0].data_type === 'bigint') {
+    console.log("Altering 'balance' column to DOUBLE PRECISION...");
+    await pool.query(`
+      ALTER TABLE balances ALTER COLUMN balance TYPE DOUBLE PRECISION;
+    `);
+    console.log("'balance' column altered to DOUBLE PRECISION.");
+  }
+
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS trades (
