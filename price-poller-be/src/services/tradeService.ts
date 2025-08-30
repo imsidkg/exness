@@ -84,10 +84,10 @@ export const createTrade = async (
       [margin, userId]
     );
 
-    // 3. Insert the new trade record
+    // 3. Insert the new trade record with stop loss and take profit
     const tradeQuery = `
-      INSERT INTO trades (user_id, type, margin, leverage, symbol, quantity, entry_price, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 'open')
+      INSERT INTO trades (user_id, type, margin, leverage, symbol, quantity, entry_price, status, stop_loss, take_profit)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'open', $8, $9)
       RETURNING order_id;
     `;
     const tradeRes = await client.query(tradeQuery, [
@@ -98,6 +98,8 @@ export const createTrade = async (
       symbol,
       quantity,
       entryPrice,
+      stopLoss,
+      takeProfit,
     ]);
 
     await client.query("COMMIT");
