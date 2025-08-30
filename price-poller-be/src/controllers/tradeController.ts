@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { closeTrade as closeTradeService, getClosedTrades, getUnrealizedPnLForUser } from "../services/tradeService";
+import { closeTrade as closeTradeService, getClosedTrades, getUnrealizedPnLForUser, getUserOpenTrades } from "../services/tradeService";
 import { AuthenticatedRequest } from "../middleware/auth";
 import { redis } from '../lib/redisClient';
 
@@ -85,6 +85,35 @@ export const getUnrealizedPnL = async (req: AuthenticatedRequest, res: Response)
     res.status(200).json(tradesWithUnrealizedPnL);
   } catch (error: any) {
     console.error("Error fetching unrealized PnL:", error);
+    res.status(500).json({ message: error.message || "Internal server error" });
+  }
+};
+
+export const getOpenTradesForUser = async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.userId;
+  if (!userId) {
+    return res.status(401).json({ message: "User not authenticated" });
+  }
+
+  try {
+    const openTrades = await getUserOpenTrades(userId);
+    
+    // Format the response according to the specified structure
+    const formattedTrades = openTrades.map(trade => ({
+      orderId: trade.order_id,
+      type: trade.type,
+      margin: Math.round(trade.margin * 100), // Convert to cents (2 decimal places)
+      leverage: trade.leverage,
+      openPrice: Math.round(trade.entry_price * 10000), // Convert to basis points (4 decimal places)
+      symbol: trade.symbol,
+      quantity: trade.quantity,
+      stopLoss: trade.stop_loss ? Math.round(trade.stop_loss * 10000) : undefined,
+      takeProfit: trade.take_profit ? Math.round(trade.take_profit * 10000) : undefined
+    }));
+
+    res.status(200).json({ trades: formattedTrades });
+  } catch (error: any) {
+    console.error("Error fetching open trades:", error);
     res.status(500).json({ message: error.message || "Internal server error" });
   }
 };

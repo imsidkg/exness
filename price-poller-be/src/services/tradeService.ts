@@ -206,6 +206,14 @@ export const getOpenTrades = async (): Promise<Trade[]> => {
   return res.rows as Trade[];
 };
 
+export const getUserOpenTrades = async (userId: string | number): Promise<Trade[]> => {
+  const query = `
+    SELECT * FROM trades WHERE user_id = $1 AND status = 'open';
+  `;
+  const res = await pool.query(query, [userId]);
+  return res.rows as Trade[];
+};
+
 export const getUnrealizedPnLForUser = async (userId: number): Promise<Trade[]> => {
   const query = `
     SELECT * FROM trades WHERE user_id = $1 AND status = 'open';
