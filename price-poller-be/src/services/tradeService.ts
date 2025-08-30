@@ -37,7 +37,15 @@ export const createTrade = async (
   userId: number,
   tradeDetails: TradeRequest
 ): Promise<string> => {
-  const { type, leverage, symbol, quantity, margin: manualMargin, stopLoss, takeProfit } = tradeDetails;
+  const {
+    type,
+    leverage,
+    symbol,
+    quantity,
+    margin: manualMargin,
+    stopLoss,
+    takeProfit,
+  } = tradeDetails;
 
   const entryPrice = currentPrices.get(symbol);
   if (!entryPrice) {
@@ -48,7 +56,10 @@ export const createTrade = async (
   const effectiveLeverage = leverage || 1;
 
   // Calculate margin: use manualMargin if provided, otherwise calculate based on effectiveLeverage
-  const margin = manualMargin !== undefined ? manualMargin : (quantity * entryPrice) / effectiveLeverage;
+  const margin =
+    manualMargin !== undefined
+      ? manualMargin
+      : (quantity * entryPrice) / effectiveLeverage;
   const client: PoolClient = await pool.connect();
 
   try {
@@ -75,8 +86,8 @@ export const createTrade = async (
 
     // 3. Insert the new trade record
     const tradeQuery = `
-      INSERT INTO trades (user_id, type, margin, leverage, symbol, quantity, entry_price, status, stop_loss, take_profit)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 'open', $8, $9)
+      INSERT INTO trades (user_id, type, margin, leverage, symbol, quantity, entry_price, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'open')
       RETURNING order_id;
     `;
     const tradeRes = await client.query(tradeQuery, [
@@ -87,8 +98,6 @@ export const createTrade = async (
       symbol,
       quantity,
       entryPrice,
-      stopLoss || null, // Pass stopLoss, or null if undefined
-      takeProfit || null, // Pass takeProfit, or null if undefined
     ]);
 
     await client.query("COMMIT");
@@ -194,7 +203,6 @@ export const getOpenTrades = async (): Promise<Trade[]> => {
   const res = await pool.query(query);
   return res.rows as Trade[];
 };
-
 export const monitorTradesForLiquidation = async () => {
   const openTrades = await getOpenTrades();
 
@@ -210,12 +218,16 @@ export const monitorTradesForLiquidation = async () => {
     // Check Take Profit
     if (trade.take_profit !== null && trade.take_profit !== undefined) {
       if (trade.type === "buy" && currentPrice >= trade.take_profit) {
-        console.log(`Trade ${trade.order_id} hit Take Profit at ${currentPrice}. Closing trade.`);
+        console.log(
+          `Trade ${trade.order_id} hit Take Profit at ${currentPrice}. Closing trade.`
+        );
         await closeTrade(trade.order_id);
         continue; // Move to the next trade after closing
       }
       if (trade.type === "sell" && currentPrice <= trade.take_profit) {
-        console.log(`Trade ${trade.order_id} hit Take Profit at ${currentPrice}. Closing trade.`);
+        console.log(
+          `Trade ${trade.order_id} hit Take Profit at ${currentPrice}. Closing trade.`
+        );
         await closeTrade(trade.order_id);
         continue; // Move to the next trade after closing
       }
@@ -224,12 +236,16 @@ export const monitorTradesForLiquidation = async () => {
     // Check Stop Loss
     if (trade.stop_loss !== null && trade.stop_loss !== undefined) {
       if (trade.type === "buy" && currentPrice <= trade.stop_loss) {
-        console.log(`Trade ${trade.order_id} hit Stop Loss at ${currentPrice}. Closing trade.`);
+        console.log(
+          `Trade ${trade.order_id} hit Stop Loss at ${currentPrice}. Closing trade.`
+        );
         await closeTrade(trade.order_id);
         continue; // Move to the next trade after closing
       }
       if (trade.type === "sell" && currentPrice >= trade.stop_loss) {
-        console.log(`Trade ${trade.order_id} hit Stop Loss at ${currentPrice}. Closing trade.`);
+        console.log(
+          `Trade ${trade.order_id} hit Stop Loss at ${currentPrice}. Closing trade.`
+        );
         await closeTrade(trade.order_id);
         continue; // Move to the next trade after closing
       }
@@ -237,7 +253,11 @@ export const monitorTradesForLiquidation = async () => {
 
     // Original Liquidation condition (if still relevant, otherwise remove or modify)
     const pnl = calculatePnL(
-      { type: trade.type, entry_price: trade.entry_price, quantity: trade.quantity },
+      {
+        type: trade.type,
+        entry_price: trade.entry_price,
+        quantity: trade.quantity,
+      },
       currentPrice
     );
     if (pnl <= -trade.margin) {
@@ -250,4 +270,3 @@ export const monitorTradesForLiquidation = async () => {
     }
   }
 };
-
