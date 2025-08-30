@@ -37,6 +37,7 @@ interface TradeRequest {
   margin: number;
   leverage: 5 | 10 | 20 | 100;
   symbol: string;
+  quantity: number;
 }
 
 interface ActiveTrade {

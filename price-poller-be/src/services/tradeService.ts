@@ -1,7 +1,8 @@
-import { v4 as uuidv4 } from "uuid";
 import { BID_ASK_CHANNEL, redis } from "../lib/redisClient";
+import { pool } from "../config/db";
+import { Trade } from "../models/trade";
+import { getLatestTradePrice } from "./timescaleService";
 
-const activeTrades: ActiveTrade[] = [];
 const currentPrices: Map<string, number> = new Map();
 
 export const startPriceListener = () => {
@@ -31,83 +32,141 @@ export const startPriceListener = () => {
   });
 };
 
-export const createTrade = async ({
-  type,
-  margin,
-  leverage,
-  symbol,
-}: TradeRequest): Promise<string> => {
-  const exposure = margin * leverage;
+export const createTrade = async (
+  userId: number,
+  { type, leverage, symbol, quantity }: Omit<TradeRequest, 'margin'>
+): Promise<string> => {
   const entryPrice = currentPrices.get(symbol);
   if (!entryPrice) {
     throw new Error("Entry price is not set for this symbol");
   }
-  const orderId = uuidv4();
-  const newTrade: ActiveTrade = {
-    orderId,
+
+  // Calculate margin based on quantity, entry_price, and leverage
+  // Assuming margin is the value of the position divided by leverage
+  const margin = (quantity * entryPrice) / leverage;
+
+  const query = `
+    INSERT INTO trades (user_id, type, margin, leverage, symbol, quantity, entry_price, status)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, 'open')
+    RETURNING order_id;
+  `;
+  const res = await pool.query(query, [
+    userId,
     type,
     margin,
     leverage,
-    exposure,
     symbol,
-    entryPrice, 
-    status: "open",
-  };
+    quantity,
+    entryPrice,
+  ]);
 
-  activeTrades.push(newTrade);
-  return orderId;
+  return res.rows[0].order_id;
+};
+
+export const getTradeById = async (orderId: string): Promise<Trade | null> => {
+  const query = `
+    SELECT * FROM trades WHERE order_id = $1;
+  `;
+  const res = await pool.query(query, [orderId]);
+  if (res.rows.length > 0) {
+    return res.rows[0] as Trade;
+  }
+  return null;
 };
 
 export const calculatePnL = (
-  trade: ActiveTrade,
+  trade: { type: "buy" | "sell"; entry_price: number; quantity: number },
   currentPrice: number
 ): number => {
   let pnl = 0;
   if (trade.type === "buy") {
-    pnl = (currentPrice - trade.entryPrice) * trade.exposure;
+    pnl = (currentPrice - trade.entry_price) * trade.quantity;
   } else if (trade.type === "sell") {
-    pnl = (trade.entryPrice - currentPrice) * trade.exposure;
+    pnl = (trade.entry_price - currentPrice) * trade.quantity;
   }
   return pnl;
 };
 
-export const getActiveTrades = (): ActiveTrade[] => {
-  return activeTrades.filter((trade) => trade.status === "open");
-};
+export const closeTrade = async (orderId: string): Promise<Trade> => {
+  const trade = await getTradeById(orderId);
 
-export const liquidateTrade = (orderId: string): boolean => {
-  const tradeIndex = activeTrades.findIndex(
-    (trade) => trade.orderId === orderId
-  );
-  if (tradeIndex !== -1) {
-    activeTrades[tradeIndex]!.status = "liquidated";
-    console.log(`Trade ${orderId} liquidated.`);
-    return true;
+  if (!trade) {
+    throw new Error("Trade not found");
   }
-  return false;
+  if (trade.status !== "open") {
+    throw new Error("Trade is not open");
+  }
+
+  const exitPrice = await getLatestTradePrice(trade.symbol);
+  if (!exitPrice) {
+    throw new Error(`Could not get current price for ${trade.symbol}`);
+  }
+
+  const realizedPnl = calculatePnL(
+    {
+      type: trade.type,
+      entry_price: trade.entry_price,
+      quantity: trade.quantity,
+    },
+    exitPrice
+  );
+
+  const query = `
+    UPDATE trades
+    SET status = 'closed', exit_price = $1, closed_at = NOW(), realized_pnl = $2
+    WHERE order_id = $3
+    RETURNING *;
+  `;
+  const res = await pool.query(query, [exitPrice, realizedPnl, orderId]);
+
+  const closedTrade = res.rows[0] as Trade;
+
+  // Update user balance
+  const userBalanceQuery = `
+    UPDATE balances
+    SET balance = balance + $1
+    WHERE user_id = $2
+    RETURNING balance;
+  `;
+  const balanceRes = await pool.query(userBalanceQuery, [realizedPnl, closedTrade.user_id]);
+
+  if (balanceRes.rows.length === 0) {
+    console.warn(`Could not update balance for user ${closedTrade.user_id}. Balance record not found.`);
+  }
+
+  return closedTrade;
 };
 
+export const getClosedTrades = async (userId: string): Promise<Trade[]> => {
+  const query = `
+    SELECT * FROM trades WHERE user_id = $1 AND status = 'closed' ORDER BY closed_at DESC;
+  `;
+  const res = await pool.query(query, [userId]);
+  return res.rows as Trade[];
+};
+
+// TODO: Update monitorTradesForLiquidation to fetch open trades from DB
 export const monitorTradesForLiquidation = () => {
-  const openTrades = getActiveTrades();
+  // const openTrades = getActiveTrades(); // This will need to be updated to fetch from DB
 
-  openTrades.forEach((trade) => {
-    const currentPrice = currentPrices.get(trade.symbol);
+  // openTrades.forEach((trade) => {
+  //   const currentPrice = currentPrices.get(trade.symbol);
 
-    if (currentPrice === undefined) {
-      console.warn(
-        `Price not available for symbol ${trade.symbol}. Skipping P&L calculation for trade ${trade.orderId}.`
-      );
-      return; // Skip this trade if price is not available
-    }
+  //   if (currentPrice === undefined) {
+  //     console.warn(
+  //       `Price not available for symbol ${trade.symbol}. Skipping P&L calculation for trade ${trade.orderId}.`
+  //     );
+  //     return; // Skip this trade if price is not available
+  //   }
 
-    const pnl = calculatePnL(trade, currentPrice);
+  //   const pnl = calculatePnL(trade, currentPrice);
 
-    // Liquidation condition: loss reaches 100% of margin
-    if (pnl <= -trade.margin) {
-      liquidateTrade(trade.orderId);
-      console.log(
-        `Trade ${trade.orderId} liquidated due to margin exhaustion. PnL: ${pnl}, Margin: ${trade.margin}`
-      );
-    }
-  });
+  //   // Liquidation condition: loss reaches 100% of margin
+  //   if (pnl <= -trade.margin) {
+  //     liquidateTrade(trade.orderId);
+  //     console.log(
+  //       `Trade ${trade.orderId} liquidated due to margin exhaustion. PnL: ${pnl}, Margin: ${trade.margin}`
+  //     );
+  //   }
+  // });
 };
