@@ -1,6 +1,9 @@
 import { Request, Response } from "express";
-import { createTrade, closeTrade as closeTradeService } from "../services/tradeService";
+import { closeTrade as closeTradeService } from "../services/tradeService";
 import { AuthenticatedRequest } from "../middleware/auth";
+import { redis } from '../lib/redisClient';
+
+const TRADE_QUEUE_NAME = 'trade:order:queue';
 
 function isTradeRequest(body: any): body is Omit<TradeRequest, 'margin'> {
   return (
@@ -17,22 +20,25 @@ function isTradeRequest(body: any): body is Omit<TradeRequest, 'margin'> {
 
 export const tradeProcessor = async (req: AuthenticatedRequest, res: Response) => {
   if (!isTradeRequest(req.body)) {
-    return res.status(411).json({ message: "Incorrect inputs" });
+    return res.status(400).json({ message: "Invalid trade request format" });
   }
 
-  const { type, leverage, symbol, quantity } = req.body;
   const userId = req.userId;
-
   if (!userId) {
     return res.status(401).json({ message: "User not authenticated" });
   }
 
+  const job = {
+    userId: userId,
+    tradeDetails: req.body
+  };
+
   try {
-    const orderId = await createTrade(userId, { type, leverage, symbol, quantity });
-    res.status(200).json({ orderId });
+    await redis.lpush(TRADE_QUEUE_NAME, JSON.stringify(job));
+    res.status(202).json({ message: "Trade request received and is being processed." });
   } catch (error) {
-    console.error("Error creating trade:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("Error pushing trade to queue:", error);
+    res.status(500).json({ message: "Failed to queue trade request." });
   }
 };
 

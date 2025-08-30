@@ -1,4 +1,4 @@
-type BinanceTicker = {
+ type BinanceTicker = {
   u: number; // Order book update id
   s: string; // Symbol
   b: string; // Best bid price
@@ -7,7 +7,7 @@ type BinanceTicker = {
   A: string; // Best ask quantity
 };
 
-type BinanceTrade = {
+ type BinanceTrade = {
   e: string; // Event type
   E: number; // Event time
   s: string; // Symbol
@@ -21,7 +21,7 @@ type BinanceTrade = {
   M: boolean; // Ignore
 };
 
-interface Candle {
+ interface Candle {
   symbol: string;
   interval: string; // e.g., "1m", "5m"
   openTime: number; // Unix timestamp in milliseconds
@@ -32,7 +32,7 @@ interface Candle {
   volume: number;
 }
 
-interface TradeRequest {
+ interface TradeRequest {
   type: "buy" | "sell";
   margin: number;
   leverage: 5 | 10 | 20 | 100;
@@ -40,7 +40,7 @@ interface TradeRequest {
   quantity: number;
 }
 
-interface ActiveTrade {
+ interface ActiveTrade {
   orderId: string;
   type: "buy" | "sell";
   margin: number;
@@ -49,4 +49,10 @@ interface ActiveTrade {
   symbol: string;
   entryPrice: number; // Price at which the trade was opened
   status: "open" | "liquidated" | "closed"; // To track trade status
+}
+
+ interface ClosedTrade extends ActiveTrade {
+  exitPrice: number; // Price at which the trade was closed
+  realizedPnl: number; // Profit or loss from the trade
+  closedAt: Date; // Time when the trade was closed
 }
