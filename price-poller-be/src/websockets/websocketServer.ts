@@ -28,17 +28,34 @@ export const startWebSocketServer = () => {
 
   subscriber.on('message', (channel, message) => {
     try {
-      // To help the client distinguish message types, we can wrap the data
-      const outgoingPayload = JSON.stringify({
-        channel: channel,
-        data: JSON.parse(message), // We assume the message from Redis is a JSON string
-      });
+      console.log(`Received message on channel ${channel}:`, message);
+      // Parse the message from Redis
+      const parsedMessage = JSON.parse(message);
+      
+      // For bid/ask updates, send the raw data structure that frontend expects
+      if (channel === BID_ASK_CHANNEL) {
+        console.log("Processing bid/ask update:", parsedMessage);
+        const outgoingPayload = JSON.stringify(parsedMessage);
+        console.log(`Sending to ${wss.clients.size} clients:`, outgoingPayload);
+        wss.clients.forEach(client => {
+          if (client.readyState === client.OPEN) {
+            client.send(outgoingPayload);
+          }
+        });
+      } else {
+        // For other channels, use the wrapped format
+        console.log("Processing other channel update:", channel, parsedMessage);
+        const outgoingPayload = JSON.stringify({
+          channel: channel,
+          data: parsedMessage,
+        });
 
-      wss.clients.forEach(client => {
-        if (client.readyState === client.OPEN) {
-          client.send(outgoingPayload);
-        }
-      });
+        wss.clients.forEach(client => {
+          if (client.readyState === client.OPEN) {
+            client.send(outgoingPayload);
+          }
+        });
+      }
     } catch (error) {
       console.error(`Error parsing or sending message on channel ${channel}:`, error);
     }

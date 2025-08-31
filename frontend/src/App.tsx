@@ -1,4 +1,4 @@
-import React, { useEffect, useReducer, useState } from "react"; // Added useState
+import  { useEffect, useReducer, useState } from "react"; // Added useState
 import { ChartComponent } from "./components/CandleSticks";
 import Auth from "./components/Auth";
 
@@ -210,24 +210,35 @@ function App() {
       console.log("Connected to WebSocket server for bid/ask updates");
 
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data as string);
-      if (data.symbol === state.symbol) {
-        dispatch({
-          type: "SET_BID_ASK",
-          payload: {
-            bid: parseFloat(data.bid).toFixed(2),
-            ask: parseFloat(data.ask).toFixed(2),
-          },
-        });
-        if (data.tradePrice && data.tradeTime) {
+      try {
+        console.log("WebSocket message received:", event.data);
+        const data = JSON.parse(event.data as string);
+        console.log("Parsed WebSocket data:", data);
+        
+        if (data.symbol === state.symbol) {
+          console.log("Matching symbol, updating bid/ask:", data.symbol);
           dispatch({
-            type: "UPDATE_LAST_CANDLE",
+            type: "SET_BID_ASK",
             payload: {
-              tradePrice: data.tradePrice,
-              tradeTime: data.tradeTime,
+              bid: parseFloat(data.bid).toFixed(2),
+              ask: parseFloat(data.ask).toFixed(2),
             },
           });
+          if (data.tradePrice && data.tradeTime) {
+            console.log("Updating candle with trade data");
+            dispatch({
+              type: "UPDATE_LAST_CANDLE",
+              payload: {
+                tradePrice: data.tradePrice,
+                tradeTime: data.tradeTime,
+              },
+            });
+          }
+        } else {
+          console.log("Symbol mismatch:", data.symbol, "!=", state.symbol);
         }
+      } catch (error) {
+        console.error("Error processing WebSocket message:", error, event.data);
       }
     };
 
