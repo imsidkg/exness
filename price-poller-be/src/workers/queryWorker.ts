@@ -38,7 +38,7 @@ export const processQueue = async () => {
 
         return {
           time: new Date(trade.T), // Use trade time
-          symbol: trade.s,
+          symbol: trade.s.toLowerCase(),
           tradePrice: tradePrice,
           bidPrice: bidPrice,
           askPrice: askPrice,

@@ -22,9 +22,11 @@ type Action =
     }
   | { type: "SET_BID_ASK"; payload: { bid: string; ask: string } };
 
+const symbolOptions = ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
+
 const initialState: State = {
   candleData: [],
-  symbol: "BTCUSDT",
+  symbol: symbolOptions[0],
   interval: "1m",
   bidPrice: null,
   askPrice: null,
@@ -277,14 +279,18 @@ function App() {
             <h2>Current price</h2>
             <h2>{state.currentPrice}</h2>
           </div>
-          <input
-            type="text"
+          <select
             value={state.symbol}
             onChange={(e) =>
               dispatch({ type: "SET_SYMBOL", payload: e.target.value })
             }
-            placeholder="Symbol"
-          />
+          >
+            {symbolOptions.map((symbol) => (
+              <option key={symbol} value={symbol}>
+                {symbol}
+              </option>
+            ))}
+          </select>
           <input
             type="text"
             value={state.interval}

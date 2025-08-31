@@ -1,5 +1,5 @@
 import Websocket, { RawData } from "ws";
-import { redis } from "../lib/redisClient";
+import { BID_ASK_CHANNEL, redis } from "../lib/redisClient";
 
 export const fetchBinanceData = async (symbols: string[]) => {
   const streams = symbols
@@ -18,9 +18,16 @@ export const fetchBinanceData = async (symbols: string[]) => {
       const parsedData = JSON.parse(data.toString());
       const trade: BinanceTrade = parsedData.data;
 
+      // Assuming 's' is symbol and 'p' is price from Binance trade data
+      const symbol = trade.s.toLowerCase();
+      const price = parseFloat(trade.p);
+
+      // Publish to BID_ASK_CHANNEL for real-time price updates
+      await redis.publish(BID_ASK_CHANNEL, JSON.stringify({ symbol, ask: price }));
+
+      // Also push to the trade queue for other workers if needed
       await redis.lpush("binance:trade:queue", JSON.stringify(trade));
 
-      console.log(`${trade.s} | Price: ${trade.p}`);
     } catch (error) {
       console.error("Error processing message:", error);
     }

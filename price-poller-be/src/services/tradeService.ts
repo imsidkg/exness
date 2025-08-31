@@ -51,7 +51,9 @@ export const createTrade = async (
     takeProfit,
   } = tradeDetails;
 
-  const entryPrice = currentPrices.get(symbol);
+  const lowerCaseSymbol = symbol.toLowerCase();
+
+  const entryPrice = currentPrices.get(lowerCaseSymbol);
   if (!entryPrice) {
     throw new Error("Entry price is not set for this symbol");
   }
@@ -99,7 +101,7 @@ export const createTrade = async (
       type,
       margin,
       effectiveLeverage, // Use effectiveLeverage here
-      symbol,
+      lowerCaseSymbol,
       quantity,
       entryPrice,
       stopLoss,
