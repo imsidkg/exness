@@ -1,6 +1,7 @@
 import  { useEffect, useReducer, useState } from "react"; // Added useState
 import { ChartComponent } from "./components/CandleSticks";
 import Auth from "./components/Auth";
+import Trades from "./components/Trades";
 
 type State = {
   candleData: any[];
@@ -102,6 +103,7 @@ function App() {
   ); // Added isLoggedIn state
   const [userBalance, setUserBalance] = useState<number | null>(null);
   const [quantity, setQuantity] = useState<number>(0.001);
+  const [margin, setMargin] = useState<number | undefined>(undefined);
   const [leverage, setLeverage] = useState<number>(1);
   const [stopLoss, setStopLoss] = useState<number | undefined>(undefined);
   const [takeProfit, setTakeProfit] = useState<number | undefined>(undefined);
@@ -156,6 +158,7 @@ function App() {
           type,
           symbol: state.symbol,
           quantity,
+          margin,
           leverage,
           stopLoss,
           takeProfit,
@@ -306,6 +309,18 @@ function App() {
               />
             </div>
             <div style={{ marginBottom: "10px" }}>
+              <label htmlFor="margin">Margin (Optional):</label>
+              <input
+                type="number"
+                id="margin"
+                value={margin !== undefined ? margin : ''}
+                onChange={(e) => setMargin(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                placeholder="Margin Amount (Optional)"
+                step="0.01"
+                min="0"
+              />
+            </div>
+            <div style={{ marginBottom: "10px" }}>
               <label htmlFor="leverage">Leverage:</label>
               <input
                 type="number"
@@ -353,6 +368,12 @@ function App() {
           </div>
 
           <ChartComponent data={state.candleData} />
+          
+          {/* Trades Management Section */}
+          <div style={{ marginTop: "40px", borderTop: "2px solid #ccc", paddingTop: "20px" }}>
+            <Trades token={localStorage.getItem("token")} />
+          </div>
+
           <button
             onClick={handleLogout}
             style={{
