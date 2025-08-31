@@ -28,8 +28,8 @@ export const signup = async (req: Request, res: Response) => {
             );
             const userId = userResult.rows[0].id;
 
-            // Initial balance of 5000 USD, stored as 5000000000 (6 decimal places)
-            const initialBalance = 5000 * 1000000;
+            // Initial balance of 5000 USD
+            const initialBalance = 5000;
             await client.query(
                 'INSERT INTO balances (user_id, balance) VALUES ($1, $2)',
                 [userId, initialBalance]
@@ -38,7 +38,7 @@ export const signup = async (req: Request, res: Response) => {
             await client.query('COMMIT');
 
             const balanceResult = await client.query('SELECT balance FROM balances WHERE user_id = $1', [userId]);
-            const balance = balanceResult.rows[0]?.balance / 1000000; // Convert back to USD
+            const balance = balanceResult.rows[0]?.balance;
 
             const token = jwt.sign({ userId: userId }, JWT_SECRET, { expiresIn: '1h' });
             const initialPrice = await getLatestTradePrice('BTC/USD');
@@ -85,7 +85,7 @@ export const signin = async (req: Request, res: Response) => {
         const initialPrice = await getLatestTradePrice('BTC/USD');
 
         const balanceResult = await pool.query('SELECT balance FROM balances WHERE user_id = $1', [user.id]);
-        const balance = balanceResult.rows[0]?.balance / 1000000; // Convert back to USD
+        const balance = balanceResult.rows[0]?.balance;
 
         res.status(200).json({ token, initialPrice, balance });
         } catch (error) {
@@ -108,7 +108,7 @@ export const signin = async (req: Request, res: Response) => {
                 return res.status(404).json({ message: "Balance not found for this user" });
             }
 
-            const balance = balanceResult.rows[0]?.balance / 1000000; // Convert back to USD
+            const balance = balanceResult.rows[0]?.balance;
 
             res.status(200).json({ balance });
         } catch (error) {
