@@ -1,10 +1,9 @@
 import { WebSocketServer } from 'ws';
 import http from 'http';
-import { redis } from '../lib/redisClient';
+import { BID_ASK_CHANNEL, redis, UNREALIZED_PNL_CHANNEL } from '../lib/redisClient';
 
 const WS_PORT = 3002;
 
-const BID_ASK_CHANNEL = "bid_ask_updates";
 const TRADE_UPDATES_CHANNEL = "trade_updates"; // The new dedicated channel
 
 export const startWebSocketServer = () => {
@@ -19,8 +18,8 @@ export const startWebSocketServer = () => {
 
   const subscriber = redis.duplicate();
 
-  // Subscribe to both channels
-  subscriber.subscribe(BID_ASK_CHANNEL, TRADE_UPDATES_CHANNEL, (err, count) => {
+  // Subscribe to all relevant channels
+  subscriber.subscribe(BID_ASK_CHANNEL, TRADE_UPDATES_CHANNEL, UNREALIZED_PNL_CHANNEL, (err, count) => {
     if (err) {
       return console.error("Failed to subscribe to Redis channels:", err);
     }
