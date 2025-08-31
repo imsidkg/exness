@@ -4,7 +4,7 @@ import { PoolClient } from "pg";
 import { Trade } from "../models/trade";
 import { getLatestTradePrice } from "./timescaleService";
 
-const currentPrices: Map<string, number> = new Map();
+export const currentPrices: Map<string, number> = new Map();
 
 export const startPriceListener = () => {
   const subscriber = redis.duplicate();
@@ -61,7 +61,7 @@ export const createTrade = async (
   // Determine the effective leverage, defaulting to 1 if not provided
   const effectiveLeverage = leverage || 1;
 
-  // Calculate margin: use manualMargin if provided, otherwise calculate based on effectiveLeverage
+  // Calculate margin: use manualMargin if provided, otherwise calculate based on effectiveLverage
   const margin =
     manualMargin !== undefined
       ? manualMargin
@@ -310,5 +310,29 @@ export const monitorTradesForLiquidation = async () => {
       );
       await closeTrade(trade.order_id); // Or call a specific liquidateTrade function
     }
+  }
+};
+
+export const validateBalanceForTrade = async (userId: number, margin: number): Promise<void> => {
+  const client: PoolClient = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const balanceRes = await client.query(
+      "SELECT balance FROM balances WHERE user_id = $1 FOR UPDATE",
+      [userId]
+    );
+    if (balanceRes.rows.length === 0) {
+      throw new Error("User balance record not found.");
+    }
+    const balance = balanceRes.rows[0].balance;
+    if (balance < margin) {
+      throw new Error("Insufficient funds to cover margin.");
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
   }
 };

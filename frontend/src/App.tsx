@@ -109,6 +109,7 @@ function App() {
   const [leverage, setLeverage] = useState<number>(1);
   const [stopLoss, setStopLoss] = useState<number | undefined>(undefined);
   const [takeProfit, setTakeProfit] = useState<number | undefined>(undefined);
+  const [tradeError, setTradeError] = useState<string | null>(null); // New state for trade errors
 
   const handleAuthSuccess = (balance: number) => {
     setIsLoggedIn(true);
@@ -144,6 +145,7 @@ function App() {
 
   const handleTrade = async (type: "buy" | "sell") => {
     const token = localStorage.getItem("token");
+    setTradeError(null); // Clear previous errors
     if (!token) {
       alert("Please log in to place a trade.");
       return;
@@ -167,16 +169,23 @@ function App() {
         }),
       });
 
-      const data = await response.json();
       if (response.ok) {
-        alert(data.message);
+        setTradeError(null); // Clear any previous errors on success
         fetchUserBalance(); // Refresh balance after trade
       } else {
-        alert(`Trade failed: ${data.message}`);
+        let errorMessage = "An unknown error occurred.";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (jsonError) {
+          // If response is not JSON, try to get plain text or use generic message
+          errorMessage = await response.text() || errorMessage;
+        }
+        setTradeError(errorMessage); // Set error message
       }
     } catch (error) {
       console.error("Error placing trade:", error);
-      alert("Network error or server is unreachable.");
+      setTradeError("Network error or server is unreachable."); // Set network error
     }
   };
 
@@ -359,6 +368,9 @@ function App() {
                 step="0.01"
               />
             </div>
+            {tradeError && (
+              <p style={{ color: "red", marginBottom: "10px" }}>{tradeError}</p>
+            )}
             <button
               onClick={() => handleTrade("buy")}
               style={{ backgroundColor: "#4CAF50", color: "white", marginRight: "10px" }}

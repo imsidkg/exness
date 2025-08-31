@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { closeTrade as closeTradeService, getClosedTrades, getUnrealizedPnLForUser, getUserOpenTrades } from "../services/tradeService";
+import { closeTrade as closeTradeService, getClosedTrades, getUnrealizedPnLForUser, getUserOpenTrades, validateBalanceForTrade, currentPrices } from "../services/tradeService";
 import { AuthenticatedRequest } from "../middleware/auth";
 import { redis } from '../lib/redisClient';
 
@@ -30,17 +30,36 @@ export const tradeProcessor = async (req: AuthenticatedRequest, res: Response) =
     return res.status(401).json({ message: "User not authenticated" });
   }
 
-  const job = {
-    userId: userId,
-    tradeDetails: req.body as TradeRequest
-  };
+  const { type, leverage, symbol, quantity, margin: manualMargin, stopLoss, takeProfit } = req.body as TradeRequest;
+
+  const lowerCaseSymbol = symbol.toLowerCase();
+  const entryPrice = currentPrices.get(lowerCaseSymbol);
+  if (!entryPrice) {
+    return res.status(400).json({ message: "Entry price is not set for this symbol." });
+  }
+
+  const effectiveLeverage = leverage || 1;
+  const margin = manualMargin !== undefined ? manualMargin : (quantity * entryPrice) / effectiveLeverage;
 
   try {
+    await validateBalanceForTrade(userId, margin);
+
+    const job = {
+      userId: userId,
+      tradeDetails: req.body as TradeRequest
+    };
+
     await redis.lpush(TRADE_QUEUE_NAME, JSON.stringify(job));
     res.status(202).json({ message: "Trade request received and is being processed." });
-  }  catch (error) {
-    console.error("Error pushing trade to queue:", error);
-    res.status(500).json({ message: "Failed to queue trade request." });
+  }  catch (error: any) {
+    console.error("Error processing trade request:", error);
+    if (error.message.includes("Insufficient funds")) {
+      return res.status(400).json({ message: error.message });
+    } else if (error.message.includes("User balance record not found")) {
+      return res.status(404).json({ message: error.message });
+    } else {
+      return res.status(500).json({ message: "Failed to process trade request." });
+    }
   }
 };
 
