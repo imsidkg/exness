@@ -24,7 +24,11 @@ export const startPriceListener = () => {
         const symbol = parsedMessage.symbol;
         const askPrice = parsedMessage.ask;
         if (symbol && askPrice !== undefined) {
+          console.log(`Updating price for ${symbol}: ${askPrice}`);
           currentPrices.set(symbol, askPrice);
+          
+          // Debug: log current prices map
+          console.log("Current prices:", Array.from(currentPrices.entries()));
         }
       } catch (error) {
         console.error("Error parsing Redis message:", error);

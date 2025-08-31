@@ -43,29 +43,16 @@ const Trades: React.FC<TradesProps> = ({ token }) => {
       
       if (response.ok) {
         const data = await response.json();
-        // Fetch unrealized PnL for open trades
-        const pnlResponse = await fetch("http://localhost:3001/api/v1/trade/unrealized-pnl", {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
-        
-        if (pnlResponse.ok) {
-          const pnlData = await pnlResponse.json();
-          const tradesWithPnL = data.trades.map((trade: any) => {
-            const pnlTrade = pnlData.find((t: any) => t.order_id === trade.orderId);
-            return {
-              ...trade,
-              order_id: trade.orderId,
-              entry_price: trade.openPrice / 10000,
-              margin: trade.margin / 100,
-              stop_loss: trade.stopLoss ? trade.stopLoss / 10000 : undefined,
-              take_profit: trade.takeProfit ? trade.takeProfit / 10000 : undefined,
-              unrealized_pnl: pnlTrade?.unrealized_pnl || 0
-            };
-          });
-          setOpenTrades(tradesWithPnL);
-        }
+        const trades = data.trades.map((trade: any) => ({
+          ...trade,
+          order_id: trade.orderId,
+          entry_price: trade.openPrice / 10000,
+          margin: trade.margin / 100,
+          stop_loss: trade.stopLoss ? trade.stopLoss / 10000 : undefined,
+          take_profit: trade.takeProfit ? trade.takeProfit / 10000 : undefined,
+          unrealized_pnl: 0 // Will be updated in real-time via WebSocket
+        }));
+        setOpenTrades(trades);
       } else {
         setError("Failed to fetch open trades");
       }
@@ -140,7 +127,7 @@ const Trades: React.FC<TradesProps> = ({ token }) => {
     }
   }, [token, activeTab]);
 
-  // Real-time PnL updates via WebSocket
+  // Real-time PnL updates via WebSocket - Calculate PnL directly on frontend
   useEffect(() => {
     if (!token || activeTab !== "open") return;
 
@@ -150,18 +137,64 @@ const Trades: React.FC<TradesProps> = ({ token }) => {
 
     ws.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data);
+        console.log("Raw WebSocket message:", event.data);
+        let data = JSON.parse(event.data);
+        console.log("Parsed WebSocket data:", data);
         
-        // Check if this is a bid/ask update for symbols we have open trades for
-        if (data.symbol && data.tradePrice) {
-          const openSymbols = openTrades.map(trade => trade.symbol);
-          if (openSymbols.includes(data.symbol)) {
-            // Refresh open trades to update PnL with latest prices
-            fetchOpenTrades();
+        // Handle wrapped format {channel: ..., data: ...}
+        if (data.channel && data.data) {
+          console.log("Detected wrapped format, channel:", data.channel);
+          
+          // Handle unrealized PnL updates
+          if (data.channel === "unrealized_pnl_updates") {
+            const pnlData = data.data;
+            console.log("Processing unrealized PnL update:", pnlData);
+            
+            if (pnlData.userId && pnlData.unrealizedPnL) {
+              setOpenTrades(prevTrades => {
+                return prevTrades.map(trade => {
+                  const updatedTrade = pnlData.unrealizedPnL.find((t: any) => t.order_id === trade.order_id);
+                  if (updatedTrade) {
+                    console.log(`Updating trade ${trade.order_id} PnL to: ${updatedTrade.unrealized_pnl}`);
+                    return {
+                      ...trade,
+                      unrealized_pnl: updatedTrade.unrealized_pnl
+                    };
+                  }
+                  return trade;
+                });
+              });
+            }
+          }
+          
+          // Handle bid/ask updates for direct calculation
+          if (data.channel === "bid_ask_updates" && data.data.symbol && data.data.tradePrice) {
+            const priceData = data.data;
+            console.log(`Updating PnL for ${priceData.symbol} at price ${priceData.tradePrice}`);
+            setOpenTrades(prevTrades => {
+              return prevTrades.map(trade => {
+                if (trade.symbol === priceData.symbol) {
+                  // Calculate PnL directly on frontend
+                  let unrealized_pnl = 0;
+                  if (trade.type === "buy") {
+                    unrealized_pnl = (priceData.tradePrice - trade.entry_price) * trade.quantity;
+                  } else if (trade.type === "sell") {
+                    unrealized_pnl = (trade.entry_price - priceData.tradePrice) * trade.quantity;
+                  }
+                  
+                  console.log(`Trade ${trade.order_id} PnL calculated to: ${unrealized_pnl}`);
+                  return {
+                    ...trade,
+                    unrealized_pnl
+                  };
+                }
+                return trade;
+              });
+            });
           }
         }
       } catch (error) {
-        console.error("Error processing WebSocket message for PnL:", error);
+        console.error("Error processing WebSocket message for PnL:", error, event.data);
       }
     };
 
@@ -171,7 +204,7 @@ const Trades: React.FC<TradesProps> = ({ token }) => {
     return () => {
       ws.close();
     };
-  }, [token, activeTab, openTrades]);
+  }, [token, activeTab]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
