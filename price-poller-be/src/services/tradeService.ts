@@ -4,6 +4,9 @@ import { PoolClient } from "pg";
 import { Trade } from "../models/trade";
 import { getLatestTradePrice } from "./timescaleService";
 
+// A type that extends the base Trade model with the dynamic unrealized_pnl property
+export type TradeWithUnrealizedPnl = Trade & { unrealized_pnl: number | null };
+
 export const currentPrices: Map<string, number> = new Map();
 
 export const startPriceListener = () => {
@@ -71,24 +74,30 @@ export const createTrade = async (
   try {
     await client.query("BEGIN");
 
-    // 1. Lock the user's balance row and check for sufficient funds
+    // 1. Lock the user's balance row and get current balance
     const balanceRes = await client.query(
       "SELECT balance FROM balances WHERE user_id = $1 FOR UPDATE",
       [userId]
     );
     if (balanceRes.rows.length === 0) {
+      await client.query("ROLLBACK");
       throw new Error("User balance record not found.");
     }
     const balance = balanceRes.rows[0].balance;
-    if (balance < margin) {
+
+    // 2. Get the sum of margins for all open trades for this user
+    const openTradesMarginRes = await client.query(
+      "SELECT COALESCE(SUM(margin), 0) as total_margin FROM trades WHERE user_id = $1 AND status = 'open'",
+      [userId]
+    );
+    const totalOpenMargin = parseFloat(openTradesMarginRes.rows[0].total_margin);
+
+    // 3. Check if there are sufficient funds (free margin) for the new trade
+    const freeMargin = balance - totalOpenMargin;
+    if (freeMargin < margin) {
+      await client.query("ROLLBACK");
       throw new Error("Insufficient funds to cover margin.");
     }
-
-    // 2. Deduct the margin from the user's balance
-    await client.query(
-      "UPDATE balances SET balance = balance - $1 WHERE user_id = $2",
-      [margin, userId]
-    );
 
     // 3. Insert the new trade record with stop loss and take profit
     const tradeQuery = `
@@ -220,14 +229,14 @@ export const getUserOpenTrades = async (userId: string | number): Promise<Trade[
   return res.rows as Trade[];
 };
 
-export const getUnrealizedPnLForUser = async (userId: number): Promise<Trade[]> => {
+export const getUnrealizedPnLForUser = async (userId: number): Promise<TradeWithUnrealizedPnl[]> => {
   const query = `
     SELECT * FROM trades WHERE user_id = $1 AND status = 'open';
   `;
   const res = await pool.query(query, [userId]);
   const openTrades = res.rows as Trade[];
 
-  return openTrades.map(trade => {
+  return openTrades.map((trade): TradeWithUnrealizedPnl => {
     const currentPrice = currentPrices.get(trade.symbol);
     if (currentPrice === undefined) {
       console.warn(`Price not available for symbol ${trade.symbol}. Cannot calculate unrealized PnL for trade ${trade.order_id}.`);

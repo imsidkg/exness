@@ -103,32 +103,40 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(
     !!localStorage.getItem("token")
   ); // Added isLoggedIn state
-  const [userBalance, setUserBalance] = useState<number | null>(null);
+  type AccountSummary = {
+    balance: number;
+    equity: number;
+    freeMargin: number;
+    totalMarginUsed: number;
+    totalUnrealizedPnl: number;
+  };
+  const [accountSummary, setAccountSummary] = useState<AccountSummary | null>(null);
   const [quantity, setQuantity] = useState<number>(0.001);
   const [margin, setMargin] = useState<number | undefined>(undefined);
   const [leverage, setLeverage] = useState<number>(1);
   const [stopLoss, setStopLoss] = useState<number | undefined>(undefined);
   const [takeProfit, setTakeProfit] = useState<number | undefined>(undefined);
   const [tradeError, setTradeError] = useState<string | null>(null); // New state for trade errors
-
-  const handleAuthSuccess = (balance: number) => {
+  
+  const handleAuthSuccess = () => {
     setIsLoggedIn(true);
-    setUserBalance(balance);
+    // After successful login, fetch the complete account summary
+    fetchAccountSummary();
   };
 
   const handleLogout = () => {
     // Simple frontend-only logout - just clear localStorage and reset state
     localStorage.removeItem("token");
     setIsLoggedIn(false);
-    setUserBalance(null);
+    setAccountSummary(null);
   };
 
-  const fetchUserBalance = async () => {
+  const fetchAccountSummary = async () => {
     const token = localStorage.getItem("token");
     if (!token) return;
 
     try {
-      const response = await fetch("http://localhost:3001/api/v1/user/balance", {
+      const response = await fetch("http://localhost:3001/api/v1/user/account-summary", {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -136,7 +144,7 @@ function App() {
       
       if (response.ok) {
         const data = await response.json();
-        setUserBalance(data.balance);
+        setAccountSummary(data);
       }
     } catch (error) {
       console.error("Error fetching balance:", error);
@@ -171,7 +179,7 @@ function App() {
 
       if (response.ok) {
         setTradeError(null); // Clear any previous errors on success
-        fetchUserBalance(); // Refresh balance after trade
+        fetchAccountSummary(); // Refresh account summary after trade
       } else {
         let errorMessage = "An unknown error occurred.";
         try {
@@ -193,7 +201,7 @@ function App() {
     // Check for token on initial load
     if (localStorage.getItem("token")) {
       setIsLoggedIn(true);
-      fetchUserBalance();
+      fetchAccountSummary();
     }
 
     fetch(
@@ -260,11 +268,11 @@ function App() {
     ws.onerror = (error) => console.error("WebSocket error:", error);
 
     // Set up interval to fetch balance every 5 seconds
-    const balanceInterval = setInterval(fetchUserBalance, 5000);
+    const summaryInterval = setInterval(fetchAccountSummary, 5000);
 
     return () => {
       ws.close();
-      clearInterval(balanceInterval);
+      clearInterval(summaryInterval);
     };
   }, [state.symbol, state.interval]);
 
@@ -279,10 +287,12 @@ function App() {
             <p>Bid: {state.bidPrice}</p>
             <p>Ask: {state.askPrice}</p>
           </div>
-          {userBalance !== null && (
-            <p style={{ marginTop: "5px", color: "green" }}>
-              Your Balance: ${userBalance.toFixed(2)}
-            </p>
+          {accountSummary !== null && (
+            <div>
+              {/* <p style={{ marginTop: "5px" }}>Balance: ${accountSummary.balance.toFixed(2)}</p> */}
+              <p style={{ marginTop: "5px", color: "blue" }}>User Balance: ${accountSummary.freeMargin.toFixed(2)}</p>
+              {/* <p style={{ marginTop: "5px", color: "green", fontWeight: "bold" }}>Equity: ${accountSummary.equity.toFixed(2)}</p> */}
+            </div>
           )}
           <div>
             <h2>Current price</h2>

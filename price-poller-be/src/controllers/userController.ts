@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { pool } from '../config/db';
 import { User} from '../models/user';
 import { getLatestTradePrice } from '../services/timescaleService';
+import { getAccountSummary as getAccountSummaryService } from '../services/userService';
 
 const SALT_ROUNDS = 10;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-default-secret';
@@ -94,25 +95,18 @@ export const signin = async (req: Request, res: Response) => {
         }
     };
 
-    export const getBalance = async (req: AuthenticatedRequest, res: Response) => {
+    export const getAccountSummary = async (req: AuthenticatedRequest, res: Response) => {
         try {
-            const userId = req.userId; 
-
+            const userId = req.userId;
             if (!userId) {
                 return res.status(401).json({ message: "Unauthorized" });
             }
 
-            const balanceResult = await pool.query('SELECT balance FROM balances WHERE user_id = $1', [userId]);
+            const summary = await getAccountSummaryService(userId);
 
-            if (balanceResult.rows.length === 0) {
-                return res.status(404).json({ message: "Balance not found for this user" });
-            }
-
-            const balance = balanceResult.rows[0]?.balance;
-
-            res.status(200).json({ balance });
+            res.status(200).json(summary);
         } catch (error) {
-            console.error("Error fetching balance:", error);
+            console.error("Error fetching account summary:", error);
             res.status(500).json({ message: "Internal server error" });
         }
     };
