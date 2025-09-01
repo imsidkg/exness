@@ -50,7 +50,7 @@ export const ChartComponent: React.FC<ChartProps> = ({ data, colors = {} }) => {
         textColor,
       },
       width: chartContainerRef.current.clientWidth,
-      height: 300,
+      height: 500,
     });
 
         const candleSeries = chart.addSeries(CandlestickSeries, {
@@ -97,6 +97,6 @@ export const ChartComponent: React.FC<ChartProps> = ({ data, colors = {} }) => {
   }, [data]);
 
   return (
-    <div ref={chartContainerRef} style={{ width: "100%", height: "300px" }} />
+    <div ref={chartContainerRef} style={{ width: "100%", height: "500px" }} />
   );
 };

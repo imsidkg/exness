@@ -1,7 +1,6 @@
-import  { useEffect, useReducer, useState } from "react"; // Added useState
-import { ChartComponent } from "./components/CandleSticks";
-import Auth from "./components/Auth";
-import Trades from "./components/Trades";
+import  { useEffect, useReducer, useState } from "react";
+import ModernAuth from "./components/ModernAuth";
+import TradingDashboard from "./components/TradingDashboard";
 
 type State = {
   candleData: any[];
@@ -102,7 +101,8 @@ function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(
     !!localStorage.getItem("token")
-  ); // Added isLoggedIn state
+  );
+  const [userEmail, setUserEmail] = useState<string>("");
   type AccountSummary = {
     balance: number;
     equity: number;
@@ -111,23 +111,22 @@ function App() {
     totalUnrealizedPnl: number;
   };
   const [accountSummary, setAccountSummary] = useState<AccountSummary | null>(null);
-  const [quantity, setQuantity] = useState<number>(0.001);
-  const [margin, setMargin] = useState<number | undefined>(undefined);
-  const [leverage, setLeverage] = useState<number>(1);
-  const [stopLoss, setStopLoss] = useState<number | undefined>(undefined);
-  const [takeProfit, setTakeProfit] = useState<number | undefined>(undefined);
-  const [tradeError, setTradeError] = useState<string | null>(null); // New state for trade errors
+  const [quantity] = useState<number>(0.001);
+  const [margin] = useState<number | undefined>(undefined);
+  const [leverage] = useState<number>(1);
+  const [stopLoss] = useState<number | undefined>(undefined);
+  const [takeProfit] = useState<number | undefined>(undefined);
+  const [tradeError, setTradeError] = useState<string | null>(null);
   
   const handleAuthSuccess = () => {
     setIsLoggedIn(true);
-    // After successful login, fetch the complete account summary
     fetchAccountSummary();
   };
 
   const handleLogout = () => {
-    // Simple frontend-only logout - just clear localStorage and reset state
     localStorage.removeItem("token");
     setIsLoggedIn(false);
+    setUserEmail("");
     setAccountSummary(null);
   };
 
@@ -277,148 +276,25 @@ function App() {
   }, [state.symbol, state.interval]);
 
   return (
-    <div style={{ width: "800px", margin: "20px auto" }}>
+    <>
       {!isLoggedIn ? (
-        <Auth onAuthSuccess={handleAuthSuccess} />
+        <ModernAuth onAuthSuccess={handleAuthSuccess} />
       ) : (
-        <>
-          <div>
-            <h2>Real-time Prices:</h2>
-            <p>Bid: {state.bidPrice}</p>
-            <p>Ask: {state.askPrice}</p>
-          </div>
-          {accountSummary !== null && (
-            <div>
-              {/* <p style={{ marginTop: "5px" }}>Balance: ${accountSummary.balance.toFixed(2)}</p> */}
-              <p style={{ marginTop: "5px", color: "blue" }}>User Balance: ${accountSummary.freeMargin.toFixed(2)}</p>
-              {/* <p style={{ marginTop: "5px", color: "green", fontWeight: "bold" }}>Equity: ${accountSummary.equity.toFixed(2)}</p> */}
-            </div>
-          )}
-          <div>
-            <h2>Current price</h2>
-            <h2>{state.currentPrice}</h2>
-          </div>
-          <select
-            value={state.symbol}
-            onChange={(e) =>
-              dispatch({ type: "SET_SYMBOL", payload: e.target.value })
-            }
-          >
-            {symbolOptions.map((symbol) => (
-              <option key={symbol} value={symbol}>
-                {symbol}
-              </option>
-            ))}
-          </select>
-          <input
-            type="text"
-            value={state.interval}
-            onChange={(e) =>
-              dispatch({ type: "SET_INTERVAL", payload: e.target.value })
-            }
-            placeholder="Interval"
-          />
-
-          <div style={{ marginTop: "20px", borderTop: "1px solid #ccc", paddingTop: "20px" }}>
-            <h3>Place Trade</h3>
-            <div style={{ marginBottom: "10px" }}>
-              <label htmlFor="quantity">Quantity:</label>
-              <input
-                type="number"
-                id="quantity"
-                value={quantity}
-                onChange={(e) => setQuantity(parseFloat(e.target.value))}
-                placeholder="Quantity"
-                step="0.001"
-                min="0.001"
-              />
-            </div>
-            <div style={{ marginBottom: "10px" }}>
-              <label htmlFor="margin">Margin (Optional):</label>
-              <input
-                type="number"
-                id="margin"
-                value={margin !== undefined ? margin : ''}
-                onChange={(e) => setMargin(e.target.value === '' ? undefined : parseFloat(e.target.value))}
-                placeholder="Margin Amount (Optional)"
-                step="0.01"
-                min="0"
-              />
-            </div>
-            <div style={{ marginBottom: "10px" }}>
-              <label htmlFor="leverage">Leverage:</label>
-              <input
-                type="number"
-                id="leverage"
-                value={leverage}
-                onChange={(e) => setLeverage(parseFloat(e.target.value))}
-                placeholder="Leverage"
-                min="1"
-              />
-            </div>
-            <div style={{ marginBottom: "10px" }}>
-              <label htmlFor="stopLoss">Stop Loss:</label>
-              <input
-                type="number"
-                id="stopLoss"
-                value={stopLoss !== undefined ? stopLoss : ''}
-                onChange={(e) => setStopLoss(e.target.value === '' ? undefined : parseFloat(e.target.value))}
-                placeholder="Stop Loss (Optional)"
-                step="0.01"
-              />
-            </div>
-            <div style={{ marginBottom: "20px" }}>
-              <label htmlFor="takeProfit">Take Profit:</label>
-              <input
-                type="number"
-                id="takeProfit"
-                value={takeProfit !== undefined ? takeProfit : ''}
-                onChange={(e) => setTakeProfit(e.target.value === '' ? undefined : parseFloat(e.target.value))}
-                placeholder="Take Profit (Optional)"
-                step="0.01"
-              />
-            </div>
-            {tradeError && (
-              <p style={{ color: "red", marginBottom: "10px" }}>{tradeError}</p>
-            )}
-            <button
-              onClick={() => handleTrade("buy")}
-              style={{ backgroundColor: "#4CAF50", color: "white", marginRight: "10px" }}
-            >
-              Buy
-            </button>
-            <button
-              onClick={() => handleTrade("sell")}
-              style={{ backgroundColor: "#f44336", color: "white" }}
-            >
-              Sell
-            </button>
-          </div>
-
-          <ChartComponent data={state.candleData} />
-          
-          {/* Trades Management Section */}
-          <div style={{ marginTop: "40px", borderTop: "2px solid #ccc", paddingTop: "20px" }}>
-            <Trades token={localStorage.getItem("token")} />
-          </div>
-
-          <button
-            onClick={handleLogout}
-            style={{
-              marginTop: "20px",
-              padding: "10px 20px",
-              backgroundColor: "#ff4444",
-              color: "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer"
-            }}
-          >
-            Logout
-          </button>
-        </>
+        <TradingDashboard
+          symbol={state.symbol}
+          bidPrice={state.bidPrice}
+          askPrice={state.askPrice}
+          currentPrice={state.currentPrice}
+          accountSummary={accountSummary}
+          candleData={state.candleData}
+          onTrade={handleTrade}
+          tradeError={tradeError}
+          onSymbolChange={(symbol) => dispatch({ type: "SET_SYMBOL", payload: symbol })}
+          onLogout={handleLogout}
+          userEmail={userEmail}
+        />
       )}
-    </div>
+    </>
   );
 }
 
