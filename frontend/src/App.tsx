@@ -1,4 +1,4 @@
-import  { useEffect, useReducer, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import ModernAuth from "./components/ModernAuth";
 import TradingDashboard from "./components/TradingDashboard";
 
@@ -6,8 +6,7 @@ type State = {
   candleData: any[];
   symbol: string;
   interval: string;
-  bidPrice: string | null;
-  askPrice: string | null;
+  prices: { [symbol: string]: { bid: string; ask: string } };
   currentPrice: number | null;
 };
 
@@ -19,7 +18,7 @@ type Action =
       type: "UPDATE_LAST_CANDLE";
       payload: { tradePrice: number; tradeTime: number };
     }
-  | { type: "SET_BID_ASK"; payload: { bid: string; ask: string } };
+  | { type: "SET_BID_ASK"; payload: { symbol: string; bid: string; ask: string } };
 
 const symbolOptions = ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
 
@@ -27,8 +26,7 @@ const initialState: State = {
   candleData: [],
   symbol: symbolOptions[0],
   interval: "1m",
-  bidPrice: null,
-  askPrice: null,
+  prices: {},
   currentPrice: null,
 };
 
@@ -43,8 +41,13 @@ function reducer(state: State, action: Action): State {
     case "SET_BID_ASK":
       return {
         ...state,
-        bidPrice: action.payload.bid,
-        askPrice: action.payload.ask,
+        prices: {
+          ...state.prices,
+          [action.payload.symbol]: {
+            bid: action.payload.bid,
+            ask: action.payload.ask,
+          },
+        },
       };
     case "UPDATE_LAST_CANDLE":
       const { tradePrice, tradeTime } = action.payload;
@@ -232,21 +235,20 @@ function App() {
 
     ws.onmessage = (event) => {
       try {
-        console.log("WebSocket message received:", event.data);
         const data = JSON.parse(event.data as string);
-        console.log("Parsed WebSocket data:", data);
         
-        if (data.symbol === state.symbol) {
-          console.log("Matching symbol, updating bid/ask:", data.symbol);
-          dispatch({
-            type: "SET_BID_ASK",
-            payload: {
-              bid: parseFloat(data.bid).toFixed(2),
-              ask: parseFloat(data.ask).toFixed(2),
-            },
-          });
-          if (data.tradePrice && data.tradeTime) {
-            console.log("Updating candle with trade data");
+        if (data.symbol && data.bid && data.ask) {
+            dispatch({
+                type: "SET_BID_ASK",
+                payload: {
+                    symbol: data.symbol,
+                    bid: parseFloat(data.bid).toFixed(2),
+                    ask: parseFloat(data.ask).toFixed(2),
+                },
+            });
+        }
+
+        if (data.symbol === state.symbol && data.tradePrice && data.tradeTime) {
             dispatch({
               type: "UPDATE_LAST_CANDLE",
               payload: {
@@ -254,9 +256,6 @@ function App() {
                 tradeTime: data.tradeTime,
               },
             });
-          }
-        } else {
-          console.log("Symbol mismatch:", data.symbol, "!=", state.symbol);
         }
       } catch (error) {
         console.error("Error processing WebSocket message:", error, event.data);
@@ -282,8 +281,7 @@ function App() {
       ) : (
         <TradingDashboard
           symbol={state.symbol}
-          bidPrice={state.bidPrice}
-          askPrice={state.askPrice}
+          prices={state.prices}
           currentPrice={state.currentPrice}
           accountSummary={accountSummary}
           candleData={state.candleData}

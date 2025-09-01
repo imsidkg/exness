@@ -20,11 +20,11 @@ import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { ChartComponent } from "./CandleSticks";
 import UserProfile from "./UserProfile";
+import { Table, TableHeader, TableBody, TableRow, TableCell, TableHead } from "./ui/table";
 
 interface TradingDashboardProps {
   symbol: string;
-  bidPrice: string | null;
-  askPrice: string | null;
+  prices: { [symbol: string]: { bid: string; ask: string } };
   currentPrice: number | null;
   accountSummary: any;
   candleData: any[];
@@ -37,8 +37,7 @@ interface TradingDashboardProps {
 
 const TradingDashboard = ({
   symbol,
-  bidPrice,
-  askPrice,
+  prices,
   currentPrice,
   accountSummary,
   candleData,
@@ -130,41 +129,9 @@ const TradingDashboard = ({
         </div>
       </motion.div>
 
-      {/* Chart Component */}
-      <div className="flex justify-center my-6">
-        <div className="w-full lg:w-2/3">
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <Card className="bg-white/80 backdrop-blur-md border-slate-200 shadow-sm">
-              <CardHeader>
-                <CardTitle>Price Chart</CardTitle>
-                <CardDescription>Real-time candlestick chart for {symbol}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ChartComponent 
-                  data={candleData} 
-                  colors={{
-                    backgroundColor: "#1e293b",
-                    textColor: "#e2e8f0",
-                    upColor: "#22c55e",
-                    downColor: "#ef4444",
-                    borderUpColor: "#16a34a",
-                    borderDownColor: "#dc2626",
-                    wickUpColor: "#22c55e",
-                    wickDownColor: "#ef4444"
-                  }}
-                />
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Price & Stats */}
+      {/* Main content area: Chart + Market Data + Current Price */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 my-6">
+        {/* Left Column for Market Data and Current Price (takes 1/3 width on large screens) */}
         <div className="lg:col-span-1 space-y-6">
           {/* Price Card */}
           <motion.div
@@ -194,7 +161,7 @@ const TradingDashboard = ({
             </Card>
           </motion.div>
 
-          {/* Bid/Ask Spread */}
+          {/* Market Data */}
           <motion.div
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
@@ -205,25 +172,65 @@ const TradingDashboard = ({
                 <CardTitle className="text-sm font-medium">Market Data</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-400">Bid</span>
-                  <span className="text-green-400 font-mono">${bidPrice}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-400">Ask</span>
-                  <span className="text-red-400 font-mono">${askPrice}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-400">Spread</span>
-                  <span className="text-slate-300 font-mono">
-                    {bidPrice && askPrice ? (parseFloat(askPrice) - parseFloat(bidPrice)).toFixed(2) : '0.00'}
-                  </span>
-                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Symbol</TableHead>
+                      <TableHead>Bid</TableHead>
+                      <TableHead>Ask</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Object.entries(prices).map(([symbol, price]) => (
+                      <TableRow key={symbol}>
+                        <TableCell className="font-medium text-slate-900">{symbol.toUpperCase()}</TableCell>
+                        <TableCell className="text-green-400 font-mono">${price.bid}</TableCell>
+                        <TableCell className="text-red-400 font-mono">${price.ask}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </motion.div>
+        </div>
 
-          {/* Account Summary */}
+        {/* Chart Component (takes 2/3 width on large screens) */}
+        <div className="lg:col-span-2">
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Card className="bg-white/80 backdrop-blur-md border-slate-200 shadow-sm">
+              <CardHeader>
+                <CardTitle>Price Chart</CardTitle>
+                <CardDescription>Real-time candlestick chart for {symbol}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartComponent 
+                  data={candleData} 
+                  colors={{
+                    backgroundColor: "#ffffff",
+                    textColor: "#000000",
+                    upColor: "#22c55e",
+                    downColor: "#ef4444",
+                    borderUpColor: "#16a34a",
+                    borderDownColor: "#dc2626",
+                    wickUpColor: "#22c55e",
+                    wickDownColor: "#ef4444"
+                  }}
+                />
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Remaining content area: Trade Execution + Quick Actions + Account Summary */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+        {/* Left Column - Account Summary (moved here) */}
+        <div className="lg:col-span-1 space-y-6">
           <motion.div
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
@@ -258,7 +265,7 @@ const TradingDashboard = ({
           </motion.div>
         </div>
 
-        {/* Middle Column - Trading Interface */}
+        {/* Middle Column - Trading Interface (now takes 2/3 width) */}
         <div className="lg:col-span-2 space-y-6">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
