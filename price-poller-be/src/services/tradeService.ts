@@ -7,7 +7,8 @@ import { getLatestTradePrice } from "./timescaleService";
 // A type that extends the base Trade model with the dynamic unrealized_pnl property
 export type TradeWithUnrealizedPnl = Trade & { unrealized_pnl: number | null };
 
-export const currentPrices: Map<string, number> = new Map();
+export const currentPrices: Map<string, { ask: number; bid: number }> =
+  new Map();
 
 export const startPriceListener = () => {
   const subscriber = redis.duplicate();
@@ -26,10 +27,11 @@ export const startPriceListener = () => {
         const parsedMessage = JSON.parse(message);
         const symbol = parsedMessage.symbol;
         const askPrice = parsedMessage.ask;
+        const bidPrice = parsedMessage.bid;
         if (symbol && askPrice !== undefined) {
           console.log(`Updating price for ${symbol}: ${askPrice}`);
-          currentPrices.set(symbol, askPrice);
-          
+          currentPrices.set(symbol, { ask: askPrice, bid: bidPrice });
+
           // Debug: log current prices map
           console.log("Current prices:", Array.from(currentPrices.entries()));
         }
@@ -56,7 +58,13 @@ export const createTrade = async (
 
   const lowerCaseSymbol = symbol.toLowerCase();
 
-  const entryPrice = currentPrices.get(lowerCaseSymbol);
+  let entryPrice;
+
+  if (type == "buy") {
+    entryPrice = currentPrices.get(lowerCaseSymbol)?.ask;
+  } else {
+    entryPrice = currentPrices.get(lowerCaseSymbol)?.bid;
+  }
   if (!entryPrice) {
     throw new Error("Entry price is not set for this symbol");
   }
@@ -90,7 +98,9 @@ export const createTrade = async (
       "SELECT COALESCE(SUM(margin), 0) as total_margin FROM trades WHERE user_id = $1 AND status = 'open'",
       [userId]
     );
-    const totalOpenMargin = parseFloat(openTradesMarginRes.rows[0].total_margin);
+    const totalOpenMargin = parseFloat(
+      openTradesMarginRes.rows[0].total_margin
+    );
 
     // 3. Check if there are sufficient funds (free margin) for the new trade
     const freeMargin = balance - totalOpenMargin;
@@ -221,7 +231,9 @@ export const getOpenTrades = async (): Promise<Trade[]> => {
   return res.rows as Trade[];
 };
 
-export const getUserOpenTrades = async (userId: string | number): Promise<Trade[]> => {
+export const getUserOpenTrades = async (
+  userId: string | number
+): Promise<Trade[]> => {
   const query = `
     SELECT * FROM trades WHERE user_id = $1 AND status = 'open';
   `;
@@ -229,7 +241,9 @@ export const getUserOpenTrades = async (userId: string | number): Promise<Trade[
   return res.rows as Trade[];
 };
 
-export const getUnrealizedPnLForUser = async (userId: number): Promise<TradeWithUnrealizedPnl[]> => {
+export const getUnrealizedPnLForUser = async (
+  userId: number
+): Promise<TradeWithUnrealizedPnl[]> => {
   const query = `
     SELECT * FROM trades WHERE user_id = $1 AND status = 'open';
   `;
@@ -237,9 +251,17 @@ export const getUnrealizedPnLForUser = async (userId: number): Promise<TradeWith
   const openTrades = res.rows as Trade[];
 
   return openTrades.map((trade): TradeWithUnrealizedPnl => {
-    const currentPrice = currentPrices.get(trade.symbol);
+    let currentPrice;
+    if (trade.type == "buy") {
+      currentPrice = currentPrices.get(trade.symbol)?.ask;
+    } else {
+      currentPrice = currentPrices.get(trade.symbol)?.bid;
+    }
+    // const currentPrice = currentPrices.get(trade.symbol);
     if (currentPrice === undefined) {
-      console.warn(`Price not available for symbol ${trade.symbol}. Cannot calculate unrealized PnL for trade ${trade.order_id}.`);
+      console.warn(
+        `Price not available for symbol ${trade.symbol}. Cannot calculate unrealized PnL for trade ${trade.order_id}.`
+      );
       return { ...trade, unrealized_pnl: null }; // Or handle as appropriate
     }
     const unrealized_pnl = calculatePnL(
@@ -258,7 +280,13 @@ export const monitorTradesForLiquidation = async () => {
   const openTrades = await getOpenTrades();
 
   for (const trade of openTrades) {
-    const currentPrice = currentPrices.get(trade.symbol);
+    // const currentPrice = currentPrices.get(trade.symbol);
+    let currentPrice;
+    if (trade.type == "buy") {
+      currentPrice = currentPrices.get(trade.symbol)?.ask;
+    } else {
+      currentPrice = currentPrices.get(trade.symbol)?.bid;
+    }
     if (currentPrice === undefined) {
       console.warn(
         `Price not available for symbol ${trade.symbol}. Skipping SL/TP check for trade ${trade.order_id}.`
@@ -322,7 +350,10 @@ export const monitorTradesForLiquidation = async () => {
   }
 };
 
-export const validateBalanceForTrade = async (userId: number, margin: number): Promise<void> => {
+export const validateBalanceForTrade = async (
+  userId: number,
+  margin: number
+): Promise<void> => {
   const client: PoolClient = await pool.connect();
   try {
     await client.query("BEGIN");

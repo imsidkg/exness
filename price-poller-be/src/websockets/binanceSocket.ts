@@ -21,13 +21,17 @@ export const fetchBinanceData = async (symbols: string[]) => {
       // Assuming 's' is symbol and 'p' is price from Binance trade data
       const symbol = trade.s.toLowerCase();
       const price = parseFloat(trade.p);
+      const askPrice = price * (1 + 0.005);
+      const bidPrice = price * (1 - 0.005);
 
       // Publish to BID_ASK_CHANNEL for real-time price updates
-      await redis.publish(BID_ASK_CHANNEL, JSON.stringify({ symbol, ask: price }));
+      await redis.publish(
+        BID_ASK_CHANNEL,
+        JSON.stringify({ symbol, ask: askPrice, bid: bidPrice })
+      );
 
       // Also push to the trade queue for other workers if needed
       await redis.lpush("binance:trade:queue", JSON.stringify(trade));
-
     } catch (error) {
       console.error("Error processing message:", error);
     }

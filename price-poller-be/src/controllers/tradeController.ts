@@ -33,7 +33,14 @@ export const tradeProcessor = async (req: AuthenticatedRequest, res: Response) =
   const { type, leverage, symbol, quantity, margin: manualMargin, stopLoss, takeProfit } = req.body as TradeRequest;
 
   const lowerCaseSymbol = symbol.toLowerCase();
-  const entryPrice = currentPrices.get(lowerCaseSymbol);
+  let entryPrice;
+  if(type == 'buy') {
+
+     entryPrice = currentPrices.get(lowerCaseSymbol)?.bid;
+  }
+  else {
+    entryPrice = currentPrices.get(lowerCaseSymbol)?.bid;
+  }
   if (!entryPrice) {
     return res.status(400).json({ message: "Entry price is not set for this symbol." });
   }
