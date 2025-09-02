@@ -290,6 +290,7 @@ function App() {
           onSymbolChange={(symbol) => dispatch({ type: "SET_SYMBOL", payload: symbol })}
           onLogout={handleLogout}
           userEmail={userEmail}
+          token={localStorage.getItem("token")}
         />
       )}
     </>

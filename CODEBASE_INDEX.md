@@ -36,8 +36,8 @@ A full-stack trading platform with real-time price data, candlestick charts, and
 - `src/services/aggregrator.ts` - Data aggregation
 
 ##### WebSocket Services:
-- `src/websockets/binanceSocket.ts` - Binance WebSocket connection for price data
-- `src/websockets/websocketServer.ts` - WebSocket server for real-time updates
+- `src/websockets/binanceSocket.ts` - Connects to Binance's WebSocket for real-time trade data. It processes this data, calculates a bid/ask spread, and publishes it to a Redis channel for other services to consume.
+- `src/websockets/websocketServer.ts` - Establishes a WebSocket server to provide real-time updates to connected clients. It subscribes to Redis channels for bid/ask prices, trade updates, and PnL, and broadcasts these messages to the frontend.
 
 ##### Background Workers:
 - `src/workers/pnlWorker.ts` - Profit/Loss calculation worker

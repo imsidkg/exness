@@ -22,6 +22,8 @@ import { ChartComponent } from "./CandleSticks";
 import UserProfile from "./UserProfile";
 import { Table, TableHeader, TableBody, TableRow, TableCell, TableHead } from "./ui/table";
 
+import Trades from "./Trades";
+
 interface TradingDashboardProps {
   symbol: string;
   prices: { [symbol: string]: { bid: string; ask: string } };
@@ -33,6 +35,7 @@ interface TradingDashboardProps {
   onSymbolChange: (symbol: string) => void;
   onLogout: () => void;
   userEmail?: string;
+  token: string | null;
 }
 
 const TradingDashboard = ({
@@ -45,7 +48,8 @@ const TradingDashboard = ({
   tradeError,
   onSymbolChange,
   onLogout,
-  userEmail
+  userEmail,
+  token
 }: TradingDashboardProps) => {
   const [quantity, setQuantity] = useState(0.001);
   const [leverage, setLeverage] = useState(1);
@@ -86,7 +90,7 @@ const TradingDashboard = ({
   const SymbolIcon = getSymbolIcon(symbol);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-blue-50 to-slate-100 text-slate-900 p-6 w-full">
+    <div className="min-h-screen bg-white text-slate-900 p-6 w-full">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -106,15 +110,67 @@ const TradingDashboard = ({
         </div>
         
         <div className="flex items-center space-x-4">
+          <motion.div
+            initial={{ opacity: 0, x: -50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <Card className="bg-transparent shadow-none border-0">
+              <CardContent className="p-0">
+                <motion.div
+                  key={currentPrice}
+                  initial={{ scale: 1.1, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="text-2xl font-bold"
+                >
+                  ${currentPrice?.toFixed(2) || "0.00"}
+                </motion.div>
+                <div className={`flex items-center text-xs ${isPriceUp ? 'text-green-400' : 'text-red-400'}`}>
+                  {isPriceUp ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+                  {priceChange.toFixed(2)}%
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: -50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <Card className="bg-transparent shadow-none border-0">
+              <CardContent className="p-0 flex space-x-4">
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-slate-400">Balance:</span>
+                  <span className="text-slate-900 font-mono">
+                    ${accountSummary?.freeMargin?.toFixed(2) || '0.00'}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-slate-400">Equity:</span>
+                  <span className="text-slate-900 font-mono">
+                    ${accountSummary?.equity?.toFixed(2) || '0.00'}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-slate-400">Margin:</span>
+                  <span className="text-slate-900 font-mono">
+                    ${accountSummary?.totalMarginUsed?.toFixed(2) || '0.00'}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
           <Select value={symbol} onValueChange={onSymbolChange}>
-            <SelectTrigger className="w-[180px] bg-slate-800 border-slate-700">
+            <SelectTrigger className="w-[180px] bg-gray-700 text-white border-gray-600 hover:bg-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600">
               <SelectValue placeholder="Select symbol" />
             </SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700">
+            <SelectContent className="bg-gray-800">
               {symbolOptions.map((option) => {
                 const Icon = option.icon;
                 return (
-                  <SelectItem key={option.value} value={option.value}>
+                  <SelectItem key={option.value} value={option.value} className="text-white">
                     <div className="flex items-center space-x-2">
                       <Icon className="h-4 w-4" />
                       <span>{option.label}</span>
@@ -129,39 +185,10 @@ const TradingDashboard = ({
         </div>
       </motion.div>
 
-      {/* Main content area: Chart + Market Data + Current Price */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 my-6">
-        {/* Left Column for Market Data and Current Price (takes 1/3 width on large screens) */}
+      {/* Main content area: Market Data + Chart + Trade Execution */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 my-6">
+        {/* Left Column for Market Data */}
         <div className="lg:col-span-1 space-y-6">
-          {/* Price Card */}
-          <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <Card className="bg-white/80 backdrop-blur-md border-slate-200 shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Current Price</CardTitle>
-                <SymbolIcon className="h-4 w-4 text-purple-400" />
-              </CardHeader>
-              <CardContent>
-                <motion.div
-                  key={currentPrice}
-                  initial={{ scale: 1.1, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="text-3xl font-bold"
-                >
-                  ${currentPrice?.toFixed(2) || "0.00"}
-                </motion.div>
-                <div className={`flex items-center text-xs ${isPriceUp ? 'text-green-400' : 'text-red-400'}`}>
-                  {isPriceUp ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
-                  {priceChange.toFixed(2)}%
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Market Data */}
           <motion.div
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
@@ -195,8 +222,8 @@ const TradingDashboard = ({
           </motion.div>
         </div>
 
-        {/* Chart Component (takes 2/3 width on large screens) */}
-        <div className="lg:col-span-2">
+        {/* Chart Component (takes 3/5 width on large screens) */}
+        <div className="lg:col-span-3">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
@@ -225,48 +252,9 @@ const TradingDashboard = ({
             </Card>
           </motion.div>
         </div>
-      </div>
 
-      {/* Remaining content area: Trade Execution + Quick Actions + Account Summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-        {/* Left Column - Account Summary (moved here) */}
+        {/* Right Column for Trade Execution */}
         <div className="lg:col-span-1 space-y-6">
-          <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.5 }}
-          >
-            <Card className="bg-white/80 backdrop-blur-md border-slate-200 shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Account</CardTitle>
-                <Wallet className="h-4 w-4 text-blue-400" />
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-400">Balance</span>
-                  <span className="text-slate-100 font-mono">
-                    ${accountSummary?.freeMargin?.toFixed(2) || '0.00'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-400">Equity</span>
-                  <span className="text-slate-100 font-mono">
-                    ${accountSummary?.equity?.toFixed(2) || '0.00'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-400">Margin Used</span>
-                  <span className="text-slate-100 font-mono">
-                    ${accountSummary?.totalMarginUsed?.toFixed(2) || '0.00'}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-
-        {/* Middle Column - Trading Interface (now takes 2/3 width) */}
-        <div className="lg:col-span-2 space-y-6">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
@@ -296,7 +284,7 @@ const TradingDashboard = ({
                       type="number"
                       value={quantity}
                       onChange={(e) => setQuantity(parseFloat(e.target.value))}
-                      className="bg-white border-slate-300"
+                      className="bg-white border-slate-300" 
                       step="0.001"
                       min="0.001"
                     />
@@ -362,7 +350,22 @@ const TradingDashboard = ({
               </CardContent>
             </Card>
           </motion.div>
+        </div>
+      </div>
 
+      {/* Other info cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+        <div className="lg:col-span-1 space-y-6">
+          
+
+          
+        </div>
+        
+        <div className="lg:col-span-1 space-y-6">
+          
+        </div>
+
+        <div className="lg:col-span-1 space-y-6">
           {/* Quick Actions */}
           <motion.div
             initial={{ opacity: 0, y: 50 }}
@@ -394,7 +397,7 @@ const TradingDashboard = ({
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-4 right-4 bg-white/90 backdrop-blur-md rounded-lg p-3 border border-slate-200 shadow-lg"
+          className="fixed bottom-4 right-4 bg-gray-800/90 backdrop-blur-md rounded-lg p-3 border border-slate-700 shadow-lg"
         >
           <div className="flex items-center space-x-2">
             <SymbolIcon className="h-5 w-5 text-purple-400" />
@@ -410,6 +413,9 @@ const TradingDashboard = ({
           </div>
         </motion.div>
       )}
+      <div className="mt-6">
+        <Trades token={token} />
+      </div>
     </div>
   );
 };

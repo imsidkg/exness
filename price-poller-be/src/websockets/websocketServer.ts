@@ -23,7 +23,7 @@ export const startWebSocketServer = () => {
     if (err) {
       return console.error("Failed to subscribe to Redis channels:", err);
     }
-    console.log(`Subscribed to ${count} channel(s).`);
+    console.log(`Subsc ribed to ${count} channel(s).`);
   });
 
   subscriber.on('message', (channel, message) => {
