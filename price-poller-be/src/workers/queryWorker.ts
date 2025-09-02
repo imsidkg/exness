@@ -21,8 +21,8 @@ export const processQueue = async () => {
         const tradePrice = parseFloat(trade.p);
         const tradeQuantity = parseFloat(trade.q);
 
-        const bidPrice = tradePrice; // Bid is current price
-        const askPrice = tradePrice * (1 - SPREAD_PERCENTAGE); // Ask is 1% less than current price
+        const bidPrice = tradePrice * (1 - SPREAD_PERCENTAGE); // Bid is 1% less than current price
+        const askPrice = tradePrice * (1 + SPREAD_PERCENTAGE); // Ask is 1% more than current price
 
         // Publish the latest bid/ask prices to Redis
         redis.publish(
@@ -48,11 +48,12 @@ export const processQueue = async () => {
 
       if (tickers.length > 0) {
         console.log(
-          `Inserting batch of ${tickers.length} trades into tickers table`
+          `Inserting batch of ${tickers.length} trades into tickers table.`
         );
         await insertTickerBatch(tickers);
       }
     } else {
+      // console.log("Binance trade queue is empty, waiting..."); // Too verbose, remove for now
       await new Promise((res) => setTimeout(res, 100));
     }
   }
