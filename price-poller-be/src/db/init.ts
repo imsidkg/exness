@@ -129,5 +129,147 @@ export async function initDB() {
   FROM tickers
   GROUP BY bucket, symbol;
 `);
+
+try {
+  await pool.query(`
+  SELECT add_continuous_aggregate_policy(
+    'tickers_hourly',
+    start_offset => INTERVAL '1 day',
+    end_offset => INTERVAL '1 minute',
+    schedule_interval => INTERVAL '1 minute'
+  );
+`);
+} catch (error) {
+  // @ts-ignore
+  if (error.code !== '42710') {
+    throw error;
+  }
+}
+
+try {
+  await pool.query(`
+    CALL REFRESH_CONTINUOUS_AGGREGATE('tickers_hourly', '2000-01-01', NOW());
+  `);
+} catch (error) {
+  console.error("Error refreshing continuous aggregate tickers_hourly:", error);
+}
+
+  await pool.query(`
+  CREATE MATERIALIZED VIEW IF NOT EXISTS tickers_1m
+  WITH (timescaledb.continuous) AS
+  SELECT
+    time_bucket('1 minute', time) AS bucket,
+    symbol,
+    first(trade_price, time) AS open,
+    MAX(trade_price) AS high,
+    MIN(trade_price) AS low,
+    last(trade_price, time) AS close,
+    SUM(volume) AS volume
+  FROM tickers
+  GROUP BY bucket, symbol;
+`);
+
+  try {
+    await pool.query(`
+      SELECT add_continuous_aggregate_policy(
+        'tickers_1m',
+        start_offset => INTERVAL '30 minute',
+        end_offset => INTERVAL '1 minute',
+        schedule_interval => INTERVAL '1 minute'
+      );
+    `);
+  } catch (error) {
+    // @ts-ignore
+    if (error.code !== '42710') {
+      throw error;
+    }
+  }
+
+  try {
+    await pool.query(`
+      CALL REFRESH_CONTINUOUS_AGGREGATE('tickers_1m', '2000-01-01', NOW());
+    `);
+  } catch (error) {
+    console.error("Error refreshing continuous aggregate tickers_1m:", error);
+  }
+
+  await pool.query(`
+  CREATE MATERIALIZED VIEW IF NOT EXISTS tickers_5m
+  WITH (timescaledb.continuous) AS
+  SELECT
+    time_bucket('5 minutes', time) AS bucket,
+    symbol,
+    first(trade_price, time) AS open,
+    MAX(trade_price) AS high,
+    MIN(trade_price) AS low,
+    last(trade_price, time) AS close,
+    SUM(volume) AS volume
+  FROM tickers
+  GROUP BY bucket, symbol;
+`);
+
+  try {
+    await pool.query(`
+      SELECT add_continuous_aggregate_policy(
+        'tickers_5m',
+        start_offset => INTERVAL '1 hour',
+        end_offset => INTERVAL '5 minutes',
+        schedule_interval => INTERVAL '5 minutes'
+      );
+    `);
+  } catch (error) {
+    // @ts-ignore
+    if (error.code !== '42710') {
+      throw error;
+    }
+  }
+
+  try {
+    await pool.query(`
+      CALL REFRESH_CONTINUOUS_AGGREGATE('tickers_5m', '2000-01-01', NOW());
+    `);
+  } catch (error) {
+    console.error("Error refreshing continuous aggregate tickers_5m:", error);
+  }
+
+  await pool.query(`
+  CREATE MATERIALIZED VIEW IF NOT EXISTS tickers_10m
+  WITH (timescaledb.continuous) AS
+  SELECT
+    time_bucket('10 minutes', time) AS bucket,
+    symbol,
+    first(trade_price, time) AS open,
+    MAX(trade_price) AS high,
+    MIN(trade_price) AS low,
+    last(trade_price, time) AS close,
+    SUM(volume) AS volume
+  FROM tickers
+  GROUP BY bucket, symbol;
+`);
+
+  try {
+    await pool.query(`
+      SELECT add_continuous_aggregate_policy(
+        'tickers_10m',
+        start_offset => INTERVAL '2 hour',
+        end_offset => INTERVAL '10 minutes',
+        schedule_interval => INTERVAL '10 minutes'
+      );
+    `);
+  } catch (error) {
+    // @ts-ignore
+    if (error.code !== '42710') {
+      throw error;
+    }
+  }
+
+  try {
+    await pool.query(`
+      CALL REFRESH_CONTINUOUS_AGGREGATE('tickers_10m', '2000-01-01', NOW());
+    `);
+  } catch (error) {
+    console.error("Error refreshing continuous aggregate tickers_10m:", error);
+  }
+
   console.log("Database initialized");
 }

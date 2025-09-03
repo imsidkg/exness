@@ -1,20 +1,6 @@
 import { pool } from "../config/db";
 import { Ticker } from "../models/ticker";
 
-export async function insertTicker(ticker: Ticker) {
-  const query = `
-    INSERT INTO tickers (time, symbol, trade_price, bid_price, ask_price, volume)
-    VALUES ($1, $2, $3, $4, $5, $6)
-  `;
-  await pool.query(query, [
-    ticker.time,
-    ticker.symbol,
-    ticker.tradePrice,
-    ticker.bidPrice,
-    ticker.askPrice,
-    ticker.volume,
-  ]);
-}
 
 export async function insertTickerBatch(batch: Ticker[]) {
   const query = `
@@ -59,7 +45,22 @@ export async function   getAggregatedData(symbol: string, bucket: string) {
              avg_ask_price,
              total_volume
       FROM tickers_hourly
-      WHERE symbol = $1
+      WHERE UPPER(symbol) = $1
+      ORDER BY bucket DESC
+      LIMIT 100;
+    `;
+    params = [symbol];
+  } else if (bucket === "1m" || bucket === "5m" || bucket === "10m") {
+    const viewName = `tickers_${bucket}`;
+    query = `
+      SELECT bucket,
+             open,
+             high,
+             low,
+             close,
+             volume
+      FROM ${viewName}
+      WHERE UPPER(symbol) = $1
       ORDER BY bucket DESC
       LIMIT 100;
     `;
@@ -72,7 +73,7 @@ export async function   getAggregatedData(symbol: string, bucket: string) {
              MIN(trade_price) AS low,
              last(trade_price, time) AS close
       FROM tickers
-      WHERE symbol = $2
+      WHERE UPPER(symbol) = $2
       GROUP BY bucket
       ORDER BY bucket DESC
       LIMIT 100;
@@ -88,7 +89,7 @@ export async function getLatestTradePrice(symbol: string): Promise<number | null
   const query = `
     SELECT trade_price
     FROM tickers
-    WHERE symbol = $1
+    WHERE UPPER(symbol) = $1
     ORDER BY time DESC
     LIMIT 1;
   `;
