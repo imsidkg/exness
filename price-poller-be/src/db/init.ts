@@ -139,9 +139,9 @@ try {
     schedule_interval => INTERVAL '1 minute'
   );
 `);
-} catch (error) {
-  // @ts-ignore
+} catch (error: any) {
   if (error.code !== '42710') {
+    console.error("Error adding continuous aggregate policy for tickers_hourly:", error);
     throw error;
   }
 }
@@ -178,9 +178,9 @@ try {
         schedule_interval => INTERVAL '1 minute'
       );
     `);
-  } catch (error) {
-    // @ts-ignore
+  } catch (error: any) {
     if (error.code !== '42710') {
+      console.error("Error adding continuous aggregate policy for tickers_1m:", error);
       throw error;
     }
   }
@@ -217,9 +217,9 @@ try {
         schedule_interval => INTERVAL '5 minutes'
       );
     `);
-  } catch (error) {
-    // @ts-ignore
+  } catch (error: any) {
     if (error.code !== '42710') {
+      console.error("Error adding continuous aggregate policy for tickers_5m:", error);
       throw error;
     }
   }
@@ -256,9 +256,9 @@ try {
         schedule_interval => INTERVAL '10 minutes'
       );
     `);
-  } catch (error) {
-    // @ts-ignore
+  } catch (error: any) {
     if (error.code !== '42710') {
+      console.error("Error adding continuous aggregate policy for tickers_10m:", error);
       throw error;
     }
   }
