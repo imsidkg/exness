@@ -279,8 +279,9 @@ function App() {
       {!isLoggedIn ? (
         <ModernAuth onAuthSuccess={handleAuthSuccess} />
       ) : (
-        <TradingDashboard
+                <TradingDashboard
           symbol={state.symbol}
+          interval={state.interval}
           prices={state.prices}
           currentPrice={state.currentPrice}
           accountSummary={accountSummary}
@@ -288,6 +289,7 @@ function App() {
           onTrade={handleTrade}
           tradeError={tradeError}
           onSymbolChange={(symbol) => dispatch({ type: "SET_SYMBOL", payload: symbol })}
+          onIntervalChange={(interval) => dispatch({ type: "SET_INTERVAL", payload: interval })}
           onLogout={handleLogout}
           userEmail={userEmail}
           token={localStorage.getItem("token")}

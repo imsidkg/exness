@@ -45,6 +45,7 @@ import Trades from "./Trades";
 
 interface TradingDashboardProps {
   symbol: string;
+  interval: string;
   prices: { [symbol: string]: { bid: string; ask: string } };
   currentPrice: number | null;
   accountSummary: any;
@@ -52,6 +53,7 @@ interface TradingDashboardProps {
   onTrade: (type: "buy" | "sell", data: any) => void;
   tradeError: string | null;
   onSymbolChange: (symbol: string) => void;
+  onIntervalChange: (interval: string) => void;
   onLogout: () => void;
   userEmail?: string;
   token: string | null;
@@ -59,6 +61,7 @@ interface TradingDashboardProps {
 
 const TradingDashboard = ({
   symbol,
+  interval,
   prices,
   currentPrice,
   accountSummary,
@@ -66,6 +69,7 @@ const TradingDashboard = ({
   onTrade,
   tradeError,
   onSymbolChange,
+  onIntervalChange,
   onLogout,
   userEmail,
   token,
@@ -233,7 +237,7 @@ const TradingDashboard = ({
                   Market Data
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-2 overflow-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -271,11 +275,24 @@ const TradingDashboard = ({
             transition={{ delay: 0.2 }}
           >
             <Card className="bg-white/80 backdrop-blur-md border-slate-200 shadow-sm">
-              <CardHeader>
-                <CardTitle>Price Chart</CardTitle>
-                <CardDescription>
-                  Real-time candlestick chart for {symbol}
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <div>
+                  <CardTitle>Price Chart</CardTitle>
+                  <CardDescription>
+                    Real-time candlestick chart for {symbol}
+                  </CardDescription>
+                </div>
+                <Select value={interval} onValueChange={onIntervalChange}>
+                  <SelectTrigger className="w-[100px] bg-gray-700 text-white border-gray-600 hover:bg-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600">
+                    <SelectValue placeholder="Interval" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="1m" className="text-black">1m</SelectItem>
+                    <SelectItem value="5m" className="text-black">5m</SelectItem>
+                    <SelectItem value="10m" className="text-black">10m</SelectItem>
+                    <SelectItem value="1h" className="text-black">1h</SelectItem>
+                  </SelectContent>
+                </Select>
               </CardHeader>
               <CardContent>
                 <ChartComponent
